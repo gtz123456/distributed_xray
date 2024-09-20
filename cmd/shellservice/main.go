@@ -29,11 +29,16 @@ func main() {
 		stlog.Fatalln(err)
 	}
 
-	if logProviders, err := registry.GetProvider(registry.LogService); err == nil {
-		fmt.Printf("Logging service found at %s\n", logProviders)
-		// selece a logger provider randomly
-		logProvider := logProviders[rand.Intn(len(logProviders))]
-		log.SetClientLogger(logProvider, r.ServiceName)
+	logProviders, err := registry.GetProvider(registry.LogService)
+
+	if err != nil {
+		stlog.Fatalf("Error getting log service: %v", err)
 	}
+
+	fmt.Printf("Logging service found at %s\n", logProviders)
+	// select a logger provider randomly
+	logProvider := logProviders[rand.Intn(len(logProviders))]
+	log.SetClientLogger(logProvider, r.ServiceName)
+
 	<-ctx.Done()
 }

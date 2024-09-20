@@ -2,6 +2,7 @@ package shell
 
 import (
 	"io"
+	"log"
 	"net/http"
 	"os/exec"
 )
@@ -30,8 +31,9 @@ func (sh *shellHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		w.Write([]byte("Command executed: " + string(msg)))
+		w.Write([]byte("Command executed: " + string(msg) + " "))
 		w.Write(output)
+		log.Printf("Command executed: %v %v", string(msg), output)
 		return
 
 	default:

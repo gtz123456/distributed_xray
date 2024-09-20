@@ -73,11 +73,13 @@ func (r registry) sendRequiredServices(reg Registration) error {
 
 	var p patch
 	for _, serviceReg := range r.registrations {
-		if serviceReg.ServiceName == reg.ServiceName {
-			p.Added = append(p.Added, patchEntry{
-				Name: serviceReg.ServiceName,
-				URL:  serviceReg.ServiceURL,
-			})
+		for _, reqService := range reg.RequiredServices {
+			if serviceReg.ServiceName == reqService {
+				p.Added = append(p.Added, patchEntry{
+					Name: serviceReg.ServiceName,
+					URL:  serviceReg.ServiceURL,
+				})
+			}
 		}
 	}
 

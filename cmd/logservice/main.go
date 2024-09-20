@@ -16,7 +16,7 @@ func main() {
 	// TODO: make host and port configurable
 
 	r := registry.Registration{
-		ServiceName:      "LogService",
+		ServiceName:      registry.LogService,
 		ServiceURL:       serviceAddress,
 		RequiredServices: make([]registry.ServiceName, 0),
 		ServiceUpdateURL: serviceAddress + "/services",
