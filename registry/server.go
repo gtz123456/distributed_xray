@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"go-distributed/utils"
 	"io"
 	"log"
 	"net/http"
@@ -132,13 +133,19 @@ var reg = registry{
 type RegistryService struct{}
 
 func (s RegistryService) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	log.Println("Request received")
 	switch r.Method {
 	case http.MethodPost:
-		dec := json.NewDecoder(r.Body)
+		// Check if the node is authorized
+		if utils.Regkey() != r.Header.Get("regkey") {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 
+		// Decode the request
+		dec := json.NewDecoder(r.Body)
 		var r Registration
 		err := dec.Decode(&r)
+
 		if err != nil {
 			log.Println(err)
 			w.WriteHeader(http.StatusBadRequest)
@@ -146,6 +153,7 @@ func (s RegistryService) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		log.Printf("Adding service %s with URL: %s", r.ServiceName, r.ServiceURL)
 
+		// Add the service to the registry
 		err = reg.add(r)
 		if err != nil {
 			log.Println(err)

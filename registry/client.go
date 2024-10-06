@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"go-distributed/registry/heartbeat"
+	"go-distributed/utils"
 	"log"
 	"net/http"
 	"net/url"
@@ -27,13 +28,22 @@ func RegisterService(r Registration) error {
 		return err
 	}
 
-	res, err := http.Post(ServersURL, "application/json", buf)
+	res, err := http.NewRequest(http.MethodPost, ServersURL, buf)
 	if err != nil {
 		return err
 	}
 
-	if res.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed to register service. Registry service responed with status code %v", res.StatusCode)
+	regkey := utils.Regkey()
+	res.Header.Add("Content-Type", "application/json")
+	res.Header.Add("regkey", regkey)
+
+	resp, err := http.DefaultClient.Do(res)
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed to register service. Registry service responed with status code %v", resp.StatusCode)
 	}
 
 	// Start sending heartbeats

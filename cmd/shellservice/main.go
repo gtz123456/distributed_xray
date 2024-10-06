@@ -7,12 +7,15 @@ import (
 	"go-distributed/registry"
 	"go-distributed/service"
 	"go-distributed/shell"
+	"go-distributed/utils"
 	stlog "log"
 
 	"math/rand"
 )
 
 func main() {
+	utils.LoadEnv()
+
 	host, port := "localhost", "4001"
 
 	serviceAddress := fmt.Sprintf("http://%v:%v", host, port)

@@ -5,11 +5,14 @@ import (
 	"fmt"
 	"go-distributed/registry"
 	"go-distributed/registry/heartbeat"
+	"go-distributed/utils"
 	"log"
 	"net/http"
 )
 
 func main() {
+	utils.LoadEnv()
+
 	http.Handle("/services", &registry.RegistryService{})
 	http.Handle("/heartbeat/", heartbeat.NewHeartBeatServer())
 

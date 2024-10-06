@@ -2,7 +2,6 @@ package heartbeat
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"sync"
@@ -44,7 +43,6 @@ func (b *BaseHeartBeatHandler) HandleCommonLogic(w http.ResponseWriter, r *http.
 
 	b.server.LastHeartBeat[srcAddr] = time.Now()
 
-	log.Printf("Heartbeat received from %s at %v\n", srcAddr, b.server.LastHeartBeat[srcAddr])
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -79,9 +77,6 @@ func (h *ServerInfoHeartbeatHandler) HandleHeartbeat(w http.ResponseWriter, r *h
 }
 
 func (h *HeartBeatServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	fmt.Printf("Heartbeat request received from %s", r.RemoteAddr)
-	fmt.Println(r.URL.Path)
-	fmt.Println(h.mutex)
 	h.mutex.Lock()
 	handler := h.HeartBeatTypeMap[r.URL.Path]
 	h.mutex.Unlock()

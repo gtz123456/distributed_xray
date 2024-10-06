@@ -10,7 +10,7 @@ type BasicHeartbeat struct {
 }
 
 func (b *BasicHeartbeat) SendHeartbeat() error {
-	fmt.Println("Sending heartbeat to registry")
+	// fmt.Println("Sending heartbeat to registry")
 	res, err := http.Post(b.URL, "application/json", nil)
 	if err != nil {
 		return err
@@ -18,7 +18,7 @@ func (b *BasicHeartbeat) SendHeartbeat() error {
 	if res.StatusCode != http.StatusOK {
 		return fmt.Errorf("failed to send heartbeat. Registry service responed with status code %v", res.StatusCode)
 	}
-	fmt.Println("Heartbeat sent")
+	// fmt.Println("Heartbeat sent")
 	return nil
 }
 
