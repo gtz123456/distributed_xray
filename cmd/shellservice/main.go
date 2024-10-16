@@ -32,7 +32,7 @@ func main() {
 		stlog.Fatalln(err)
 	}
 
-	logProviders, err := registry.GetProvider(registry.LogService)
+	logProviders, err := registry.GetProviders(registry.LogService)
 
 	if err != nil {
 		stlog.Fatalf("Error getting log service: %v", err)

@@ -97,10 +97,26 @@ func (r registry) sendPatch(url string, p patch) error {
 		return err
 	}
 
-	_, err = http.Post(url, "application/json", bytes.NewBuffer(d))
+	// Send the patch to the service with regkey
+	buf := bytes.NewBuffer(d)
+	res, err := http.NewRequest(http.MethodPost, ServersURL, buf)
 	if err != nil {
 		return err
 	}
+
+	regkey := utils.Regkey()
+	res.Header.Add("Content-Type", "application/json")
+	res.Header.Add("regkey", regkey)
+
+	resp, err := http.DefaultClient.Do(res)
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed to register service. Registry service responed with status code %v", resp.StatusCode)
+	}
+
 	return nil
 }
 

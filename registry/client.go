@@ -68,6 +68,12 @@ func RegisterService(r Registration) error {
 type serviceUpdateHandler struct{}
 
 func (s *serviceUpdateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// only accept request from registry service
+	if r.Header.Get("regkey") != utils.Regkey() {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
@@ -81,6 +87,7 @@ func (s *serviceUpdateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
+
 	fmt.Println("Received patch: ", p)
 	prov.Update(p)
 }
@@ -143,7 +150,7 @@ func (p *providers) get(name ServiceName) ([]string, error) {
 	return urls, nil
 }
 
-func GetProvider(name ServiceName) ([]string, error) {
+func GetProviders(name ServiceName) ([]string, error) {
 	prov.mutex.RLock()
 	defer prov.mutex.RUnlock()
 

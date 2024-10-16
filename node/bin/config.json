@@ -1,0 +1,73 @@
+{
+  "log": { "loglevel": "warning" },
+
+  "routing": {
+    "domainStrategy": "AsIs",
+    "rules": [
+      { "type": "field", "ip": ["geoip:private"], "outboundTag": "block" }
+    ]
+  },
+
+  "inbounds": [
+    {
+      "tag": "test",
+      "listen": "0.0.0.0",
+      "port": 443,
+      "protocol": "vless",
+      "settings": {
+        "clients": [
+          {
+            "id": "cbcb66f7-a1e2-4b6f-a1b3-5599dd95bb9c",
+            "flow": "xtls-rprx-vision"
+          }
+        ],
+        "decryption": "none"
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "security": "reality",
+        "realitySettings": {
+          "show": false,
+          "dest": "www.amazon.com:443",
+          "xver": 0,
+          "serverNames": ["www.amazon.com"],
+          "privateKey": "mNoGzlLbIVdKM0ZJY4sVZ8IOnFhwhdpcIYWBDQ_xQiw",
+          "shortIds": [""]
+        }
+      },
+      "sniffing": { "enabled": true, "destOverride": ["http", "tls", "quic"] }
+    }
+  ],
+  "outbounds": [
+    { "protocol": "freedom", "tag": "direct" },
+    { "protocol": "blackhole", "tag": "block" }
+  ],
+
+  "api": {
+    "tag": "api",
+    "listen": "127.0.0.1:8080",
+    "services": ["HandlerService", "LoggerService", "StatsService", "RoutingService"]
+  },
+
+  "stats": {},
+
+  "policy": {
+    "levels": {
+      "0": {
+        "handshake": 4,
+        "connIdle": 300,
+        "uplinkOnly": 2,
+        "downlinkOnly": 5,
+        "statsUserUplink": false,
+        "statsUserDownlink": false,
+        "bufferSize": 4
+      }
+    },
+    "system": {
+      "statsInboundUplink": true,
+      "statsInboundDownlink": true,
+      "statsOutboundUplink": true,
+      "statsOutboundDownlink": true
+    }
+  }
+}

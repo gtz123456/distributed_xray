@@ -12,6 +12,8 @@ type ServiceName string
 const (
 	LogService   = ServiceName("LogService")
 	ShellService = ServiceName("ShellService")
+	NodeService  = ServiceName("NodeService")
+	UserService  = ServiceName("UserService")
 )
 
 type patchEntry struct {
