@@ -9,15 +9,14 @@ import (
 type User struct {
 	gorm.Model
 	Email    string `gorm:"unique"`
-	UUID     string 
+	UUID     string
 	Password string
 
-	Plan 	 string
+	Plan      string
 	PlanStart time.Time
-	PlanEnd	 time.Time
+	PlanEnd   time.Time
 
 	Renew time.Duration
 
 	TrafficUsed int
 }
-

@@ -8,12 +8,13 @@ import (
 	"go-distributed/service"
 	"go-distributed/utils"
 	stlog "log"
+	"os"
 )
 
 func main() {
 	log.Run("distributed.log")
 	utils.LoadEnv()
-	host, port := "localhost", "4000"
+	host, port := "localhost", os.Getenv("logport")
 	serviceAddress := fmt.Sprintf("http://%v:%v", host, port)
 	// TODO: make host and port configurable
 

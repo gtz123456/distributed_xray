@@ -9,6 +9,7 @@ import (
 	"go-distributed/shell"
 	"go-distributed/utils"
 	stlog "log"
+	"os"
 
 	"math/rand"
 )
@@ -16,7 +17,7 @@ import (
 func main() {
 	utils.LoadEnv()
 
-	host, port := "localhost", "4000"
+	host, port := "localhost", os.Getenv("nodeport")
 
 	serviceAddress := fmt.Sprintf("http://%v:%v", host, port)
 

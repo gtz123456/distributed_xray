@@ -1,7 +1,7 @@
 package controllers
 
 import (
-	"go-distributed/user/db"
+	"go-distributed/web/db"
 	"net/http"
 	"os"
 	"time"
@@ -132,8 +132,27 @@ func Realitykey(c *gin.Context) {
 	})
 }
 
+type Server struct {
+	IP                string   `json:"ip"`
+	IPV6              string   `json:"ipv6"`
+	Tags              []string `json:"tags"`
+	TrafficMultiplier int      `json:"traffic_multiplier"` // 0 means free, and for better servers the value will be higher
+}
+
+func GetServers() []Server {
+	// TODO: Fetch servers from registry and cache them
+	servers := []Server{
+		{
+			IP:                "64.181.253.21",
+			TrafficMultiplier: 1,
+		},
+	}
+	return servers
+}
+
 func Servers(c *gin.Context) {
-	servers := []string{"64.181.253.21"} // TODO: Get from registry
+	//
+	servers := GetServers()
 	c.JSON(http.StatusOK, gin.H{
 		"servers": servers,
 	})

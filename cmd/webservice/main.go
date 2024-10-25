@@ -1,10 +1,10 @@
 package main
 
 import (
-	"go-distributed/user/controllers"
-	"go-distributed/user/db"
-	"go-distributed/user/middleware"
 	"go-distributed/utils"
+	"go-distributed/web/controllers"
+	"go-distributed/web/db"
+	"go-distributed/web/middleware"
 
 	"github.com/gin-gonic/gin"
 )
