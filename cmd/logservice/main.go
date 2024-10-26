@@ -16,7 +16,7 @@ func main() {
 	utils.LoadEnv()
 
 	host := utils.GetHostIP()
-	port := os.Getenv("Logport")
+	port := os.Getenv("Log_Port")
 	if port == "" {
 		port = "80"
 	}
