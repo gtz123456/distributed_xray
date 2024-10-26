@@ -11,9 +11,6 @@ import (
 	"sync"
 )
 
-const ServerPort = ":3000"
-const ServersURL = "http://localhost" + ServerPort + "/services"
-
 type registry struct {
 	registrations []Registration
 	mutex         *sync.RWMutex
@@ -33,6 +30,27 @@ func (r *registry) add(reg Registration) error {
 		},
 	})
 	return err
+}
+
+func (r *registry) remove(url string) error {
+	for i := range r.registrations {
+		if r.registrations[i].ServiceURL == url {
+			r.notify(patch{
+				Removed: []patchEntry{
+					{
+						Name: r.registrations[i].ServiceName,
+						URL:  r.registrations[i].ServiceURL,
+					},
+				},
+			})
+			r.mutex.Lock()
+			r.registrations = append(r.registrations[:i], r.registrations[i+1:]...)
+			r.mutex.Unlock()
+			fmt.Println("Removed service at URL: ", url)
+			return nil
+		}
+	}
+	return fmt.Errorf("service at URL %s not found", url)
 }
 
 func (r registry) notify(fullPatch patch) {
@@ -71,7 +89,6 @@ func (r registry) notify(fullPatch patch) {
 func (r registry) sendRequiredServices(reg Registration) error {
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
-
 	var p patch
 	for _, serviceReg := range r.registrations {
 		for _, reqService := range reg.RequiredServices {
@@ -99,7 +116,7 @@ func (r registry) sendPatch(url string, p patch) error {
 
 	// Send the patch to the service with regkey
 	buf := bytes.NewBuffer(d)
-	res, err := http.NewRequest(http.MethodPost, ServersURL, buf)
+	res, err := http.NewRequest(http.MethodPost, url, buf)
 	if err != nil {
 		return err
 	}
@@ -108,37 +125,19 @@ func (r registry) sendPatch(url string, p patch) error {
 	res.Header.Add("Content-Type", "application/json")
 	res.Header.Add("regkey", regkey)
 
+	log.Println("Sending patch to: ", url)
 	resp, err := http.DefaultClient.Do(res)
 	if err != nil {
 		return err
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed to register service. Registry service responed with status code %v", resp.StatusCode)
+		return fmt.Errorf("Failed to send patch. Registry service responded with status code %v", resp.StatusCode)
 	}
+
+	log.Println("Patch sent successfully")
 
 	return nil
-}
-
-func (r *registry) remove(url string) error {
-	for i := range r.registrations {
-		if r.registrations[i].ServiceURL == url {
-			r.notify(patch{
-				Removed: []patchEntry{
-					{
-						Name: r.registrations[i].ServiceName,
-						URL:  r.registrations[i].ServiceURL,
-					},
-				},
-			})
-			r.mutex.Lock()
-			r.registrations = append(r.registrations[:i], r.registrations[i+1:]...)
-			r.mutex.Unlock()
-			fmt.Println("Removed service at URL: ", url)
-			return nil
-		}
-	}
-	return fmt.Errorf("service at URL %s not found", url)
 }
 
 var reg = registry{
@@ -167,6 +166,13 @@ func (s RegistryService) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
+
+		if r.ServiceName == "" || r.ServiceURL == "" {
+			log.Println("Service name or URL is empty")
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
 		log.Printf("Adding service %s with URL: %s", r.ServiceName, r.ServiceURL)
 
 		// Add the service to the registry

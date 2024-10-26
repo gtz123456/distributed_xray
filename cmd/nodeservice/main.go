@@ -17,14 +17,18 @@ import (
 func main() {
 	utils.LoadEnv()
 
-	host, port := "localhost", os.Getenv("nodeport")
+	host := utils.GetHostIP()
+	port := os.Getenv("Node_Port")
+	if port == "" {
+		port = "80"
+	}
 
 	serviceAddress := fmt.Sprintf("http://%v:%v", host, port)
 
 	r := registry.Registration{
 		ServiceName:      registry.NodeService,
 		ServiceURL:       serviceAddress,
-		RequiredServices: []registry.ServiceName{registry.LogService, registry.UserService},
+		RequiredServices: []registry.ServiceName{registry.LogService, registry.WebService},
 		ServiceUpdateURL: serviceAddress + "/services",
 	}
 

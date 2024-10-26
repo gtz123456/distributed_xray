@@ -17,7 +17,11 @@ import (
 func main() {
 	utils.LoadEnv()
 
-	host, port := "localhost", os.Getenv("shellport")
+	host := utils.GetHostIP()
+	port := os.Getenv("Shell_Port")
+	if port == "" {
+		port = "80"
+	}
 
 	serviceAddress := fmt.Sprintf("http://%v:%v", host, port)
 

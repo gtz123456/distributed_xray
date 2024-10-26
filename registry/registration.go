@@ -1,5 +1,7 @@
 package registry
 
+import "os"
+
 type Registration struct {
 	ServiceName      ServiceName
 	ServiceURL       string
@@ -13,7 +15,7 @@ const (
 	LogService   = ServiceName("LogService")
 	ShellService = ServiceName("ShellService")
 	NodeService  = ServiceName("NodeService")
-	UserService  = ServiceName("UserService")
+	WebService   = ServiceName("WebService")
 )
 
 type patchEntry struct {
@@ -22,6 +24,23 @@ type patchEntry struct {
 }
 
 type patch struct {
-	Added   []patchEntry
-	Removed []patchEntry
+	Added   []patchEntry `json:"added"`
+	Removed []patchEntry `json:"removed"`
+}
+
+var ServerIP string
+var ServerPort string
+var ServerURL string
+
+func init() {
+	// Load environment variables
+	// For registry server, the ServerIP and ServerPort should be the addr it listens on, such as localhost:3000 or [::]:80
+	ServerIP = os.Getenv("Registry_IP")
+
+	ServerPort = os.Getenv("Registry_Port")
+	if ServerPort == "" {
+		ServerPort = "80"
+	}
+
+	ServerURL = "http://" + ServerIP + ":" + ServerPort + "/services"
 }

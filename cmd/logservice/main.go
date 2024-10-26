@@ -14,9 +14,14 @@ import (
 func main() {
 	log.Run("distributed.log")
 	utils.LoadEnv()
-	host, port := "localhost", os.Getenv("logport")
+
+	host := utils.GetHostIP()
+	port := os.Getenv("Logport")
+	if port == "" {
+		port = "80"
+	}
+
 	serviceAddress := fmt.Sprintf("http://%v:%v", host, port)
-	// TODO: make host and port configurable
 
 	r := registry.Registration{
 		ServiceName:      registry.LogService,

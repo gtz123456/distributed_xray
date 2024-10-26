@@ -18,6 +18,8 @@ func RegisterService(r Registration) error {
 	if err != nil {
 		return err
 	}
+
+	log.Println("Service update URL Path: ", serviceUpdatedURL.Path)
 	http.Handle(serviceUpdatedURL.Path, &serviceUpdateHandler{})
 
 	buf := new(bytes.Buffer)
@@ -28,7 +30,7 @@ func RegisterService(r Registration) error {
 		return err
 	}
 
-	res, err := http.NewRequest(http.MethodPost, ServersURL, buf)
+	res, err := http.NewRequest(http.MethodPost, ServerURL, buf)
 	if err != nil {
 		return err
 	}
@@ -37,14 +39,17 @@ func RegisterService(r Registration) error {
 	res.Header.Add("Content-Type", "application/json")
 	res.Header.Add("regkey", regkey)
 
-	resp, err := http.DefaultClient.Do(res)
-	if err != nil {
-		return err
+	log.Println("Registering service at " + ServerURL)
+	for {
+		resp, err := http.DefaultClient.Do(res)
+		if err == nil && resp.StatusCode == http.StatusOK {
+			break
+		}
+		log.Println("Failed to register service. Retry after 3 seconds...")
+		time.Sleep(3 * time.Second)
 	}
 
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed to register service. Registry service responed with status code %v", resp.StatusCode)
-	}
+	log.Println("Service registered successfully")
 
 	// Start sending heartbeats
 	interval := 3 * time.Second
@@ -93,7 +98,7 @@ func (s *serviceUpdateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 }
 
 func ShutdownService(url string) error {
-	req, err := http.NewRequest(http.MethodDelete, ServersURL, bytes.NewBuffer([]byte(url)))
+	req, err := http.NewRequest(http.MethodDelete, ServerURL, bytes.NewBuffer([]byte(url)))
 	if err != nil {
 		return err
 	}
