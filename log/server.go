@@ -24,7 +24,7 @@ func Run(destination string) {
 	log = stlog.New(fileLog(destination), "[go-distributed] - ", stlog.LstdFlags)
 }
 
-func RegisterHundlers() {
+func RegisterHandlers() {
 	http.HandleFunc("/log", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodPost:

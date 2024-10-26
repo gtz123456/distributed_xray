@@ -1,9 +1,17 @@
 package utils
 
-import "os/exec"
+import (
+	"os/exec"
+	"runtime"
+)
 
-func launchXray() {
-	path := "/bin/xray"
+func LaunchXray() {
+	path := "./bin/xray"
+
+	// add arm64 support
+	if runtime.GOARCH == "arm64" {
+		path += "_arm"
+	}
 
 	// launch xray
 
@@ -13,5 +21,8 @@ func launchXray() {
 	if err != nil {
 		panic(err)
 	}
+}
 
+func ConfigXray(realitykey string) {
+	// configuration logic for xray
 }

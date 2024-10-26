@@ -14,6 +14,8 @@ import (
 	"math/rand"
 )
 
+/* shell service is mainly for testing registry client and other utils */
+
 func main() {
 	utils.LoadEnv()
 

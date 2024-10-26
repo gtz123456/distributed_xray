@@ -1,10 +1,17 @@
 package main
 
 import (
+	"context"
+	"fmt"
+	"go-distributed/log"
+	"go-distributed/registry"
+	"go-distributed/service"
 	"go-distributed/utils"
 	"go-distributed/web/controllers"
 	"go-distributed/web/db"
 	"go-distributed/web/middleware"
+	stlog "log"
+	"os"
 
 	"github.com/gin-gonic/gin"
 )
@@ -32,6 +39,26 @@ func CORSMiddleware() gin.HandlerFunc {
 }
 
 func main() {
+	host := utils.GetHostIP()
+	port := os.Getenv("Web_Port")
+	if port == "" {
+		port = "80"
+	}
+
+	serviceAddress := fmt.Sprintf("http://%v:%v", host, port)
+
+	reg := registry.Registration{
+		ServiceName:      registry.WebService,
+		ServiceURL:       serviceAddress,
+		RequiredServices: make([]registry.ServiceName, 0),
+		ServiceUpdateURL: serviceAddress + "/service",
+	}
+
+	_, err := service.Start(context.Background(), host, port, reg, log.RegisterHandlers)
+	if err != nil {
+		stlog.Fatalln(err)
+	}
+
 	r := gin.Default()
 	r.Use(CORSMiddleware())
 	r.POST("/signup", controllers.Signup)
