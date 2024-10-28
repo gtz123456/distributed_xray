@@ -17,6 +17,7 @@ type registry struct {
 }
 
 func (r *registry) add(reg Registration) error {
+	// TODO: Remove duplicate registrations
 	r.mutex.Lock()
 	r.registrations = append(r.registrations, reg)
 	r.mutex.Unlock()

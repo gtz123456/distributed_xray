@@ -23,6 +23,7 @@ ENTRYPOINT ["/app/logservice"]
 
 FROM alpine:latest AS nodeservice
 COPY --from=nodeservicebuilder /app/nodeservice /app/nodeservice
+COPY ./node/bin /app/bin
 ENTRYPOINT ["/app/nodeservice"]
 
 FROM alpine:latest AS regservice

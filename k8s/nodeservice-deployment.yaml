@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nodeservice
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nodeservice
+  template:
+    metadata:
+      labels:
+        app: nodeservice
+    spec:
+      containers:
+        - name: nodeservice
+          image: gtzfw/distributed_xray:nodeservice-latest
+          env:
+            - name: Registry_IP
+              value: "regservice"
+          ports:
+            - containerPort: 443
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nodeservice
+spec:
+  selector:
+    app: nodeservice
+  ports:
+    - protocol: TCP
+      port: 443
+      targetPort: 443
+  type: NodePort

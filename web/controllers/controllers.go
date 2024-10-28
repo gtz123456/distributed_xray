@@ -143,7 +143,7 @@ func GetServers() []Server {
 	// TODO: Fetch servers from registry and cache them
 	servers := []Server{
 		{
-			IP:                "64.181.253.21",
+			IP:                "146.235.210.34",
 			TrafficMultiplier: 1,
 		},
 	}

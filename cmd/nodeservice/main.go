@@ -96,6 +96,6 @@ func main() {
 	utils.ConfigXray(string(realitykey))
 
 	utils.LaunchXray()
-
+	fmt.Println("Xray launched")
 	<-ctx.Done()
 }
