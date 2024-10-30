@@ -23,6 +23,8 @@ ENTRYPOINT ["/app/logservice"]
 
 FROM alpine:latest AS nodeservice
 COPY --from=nodeservicebuilder /app/nodeservice /app/nodeservice
+RUN chmod 777 /app/bin/xray
+RUN chmod 777 /app/bin/xray_arm
 COPY ./node/bin /app/bin
 ENTRYPOINT ["/app/nodeservice"]
 
