@@ -21,7 +21,7 @@ func (fl fileLog) Write(data []byte) (int, error) {
 }
 
 func Run(destination string) {
-	log = stlog.New(fileLog(destination), "[go-distributed] - ", stlog.LstdFlags)
+	log = stlog.New(fileLog(destination), "[distributed-xray] - ", stlog.LstdFlags)
 }
 
 func RegisterHandlers() {

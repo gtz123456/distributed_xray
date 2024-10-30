@@ -79,7 +79,7 @@ func main() {
 
 	resp, err := http.Get(fmt.Sprintf("%s/realitykey", WebProvider))
 	if err != nil {
-		stlog.Fatalf("Error getting reality key from web service: %v", err)
+		stlog.Println("Error getting reality key from web service: %v", err)
 	}
 	defer resp.Body.Close()
 
