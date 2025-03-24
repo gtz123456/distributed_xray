@@ -12,8 +12,14 @@ import (
 )
 
 type registry struct {
-	registrations []Registration
+	registrations map[string][]Registration
 	mutex         *sync.RWMutex
+}
+
+func (r *registry) get() []Registration {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+	return r.registrations
 }
 
 func (r *registry) add(reg Registration) error {
@@ -150,6 +156,10 @@ type RegistryService struct{}
 
 func (s RegistryService) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
+
+	case http.MethodGet:
+		serviceName := r.URL.Query().Get("serviceName")
+
 	case http.MethodPost:
 		// Check if the node is authorized
 		if utils.Regkey() != r.Header.Get("regkey") {

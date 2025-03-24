@@ -33,8 +33,6 @@ spec:
                 secretKeyRef:
                   name: webservice-secret
                   key: REALITY_PRIKEY
-            - name: PORT
-              value: "80"
           ports:
             - containerPort: 80
 ---

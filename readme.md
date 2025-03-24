@@ -18,6 +18,8 @@ docker push gtzfw/distributed_xray:regservice-latest
 docker push gtzfw/distributed_xray:webservice-latest
 
 ### run docker image
+docker run -itd --name mysql -p 3306:3306 -v /home/qtdev/bi/mysql/conf:/etc/mysql/conf -v /nfs/mysql/data:/var/lib/mysql -v /home/qtdev/bi/mysql/logs:/logs -e MYSQL_ROOT_PASSWORD=password mysql
+
 docker run -itd --name regservice regservice
 docker run -itd --name logservice -e "Registry_IP=172.17.0.2" logservice
 docker run -itd --name nodeservice -e "Registry_IP=172.17.0.2" -p 443:443 nodeservice 
@@ -38,3 +40,5 @@ kubectl apply -f k8s/logservice-deployment.yaml
 kubectl apply -f k8s/nodeservice-deployment.yaml
 kubectl apply -f k8s/webservice-secret.yaml
 kubectl apply -f k8s/webservice-deployment.yaml
+kubectl apply -f k8s/mysql-pv.yaml
+kubectl apply -f k8s/mysql-deployment.yaml
