@@ -15,7 +15,10 @@ func main() {
 	log.Run("distributed.log")
 	utils.LoadEnv()
 
-	host := utils.GetHostIP()
+	host, err := utils.GetHostIP()
+	if err != nil {
+		stlog.Fatalln("Error getting host IP:", err)
+	}
 	port := os.Getenv("Log_Port")
 	if port == "" {
 		port = "80"

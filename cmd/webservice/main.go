@@ -39,22 +39,30 @@ func CORSMiddleware() gin.HandlerFunc {
 }
 
 func main() {
-	host := utils.GetHostIP()
+	host, err := utils.GetHostIP()
+	if err != nil {
+		stlog.Fatalln("Error getting host IP:", err)
+	}
 	port := os.Getenv("Web_Port")
 	if port == "" {
 		port = "80"
+	}
+
+	GINPORT := os.Getenv("GIN_Port")
+	if GINPORT == "" {
+		GINPORT = "8080"
 	}
 
 	serviceAddress := fmt.Sprintf("http://%v:%v", host, port)
 
 	reg := registry.Registration{
 		ServiceName:      registry.WebService,
-		ServiceURL:       serviceAddress,
+		ServiceURL:       fmt.Sprintf("http://%v:%v", host, GINPORT),
 		RequiredServices: make([]registry.ServiceName, 0),
 		ServiceUpdateURL: serviceAddress + "/service",
 	}
 
-	_, err := service.Start(context.Background(), host, port, reg, log.RegisterHandlers)
+	_, err = service.Start(context.Background(), host, port, reg, log.RegisterHandlers)
 	if err != nil {
 		stlog.Fatalln(err)
 	}
@@ -66,5 +74,6 @@ func main() {
 	r.GET("/user", middleware.RequireAuth, controllers.User)
 	r.GET("/realitykey", middleware.RequireAuth, controllers.Realitykey)
 	r.GET("/servers", middleware.RequireAuth, controllers.Servers)
+	r.GET("/version", controllers.Version)
 	r.Run()
 }

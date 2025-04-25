@@ -19,7 +19,10 @@ import (
 func main() {
 	utils.LoadEnv()
 
-	host := utils.GetHostIP()
+	host, err := utils.GetHostIP()
+	if err != nil {
+		stlog.Fatalln("Error getting host IP:", err)
+	}
 	port := os.Getenv("Shell_Port")
 	if port == "" {
 		port = "80"

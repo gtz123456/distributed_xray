@@ -16,4 +16,4 @@ func Regkey() string {
 
 func DBHost() string {
 	return os.Getenv("dbhost")
-}			
+}

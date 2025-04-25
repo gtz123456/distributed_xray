@@ -3,16 +3,19 @@ package heartbeat
 import (
 	"fmt"
 	"net/http"
+	"strings"
 )
 
 type BasicHeartbeat struct {
-	URL string
+	ServiceID string
+	URL       string
 }
 
 func (b *BasicHeartbeat) SendHeartbeat() error {
 	// fmt.Println("Sending heartbeat to registry")
-	res, err := http.Post(b.URL, "application/json", nil)
+	res, err := http.Post(b.URL+"basic", "application/json", strings.NewReader(b.ServiceID))
 	if err != nil {
+		fmt.Printf("failed to send heartbeat: %v\n", err)
 		return err
 	}
 	if res.StatusCode != http.StatusOK {

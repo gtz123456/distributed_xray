@@ -15,6 +15,7 @@ spec:
       containers:
         - name: webservice
           image: gtzfw/distributed_xray:webservice-latest
+          imagePullPolicy: Always
           env:
             - name: DB
               valueFrom:

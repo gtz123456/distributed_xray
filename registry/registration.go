@@ -1,10 +1,15 @@
 package registry
 
-import "os"
+import (
+	"go-distributed/utils"
+	"os"
+)
 
 type Registration struct {
 	ServiceName      ServiceName
 	ServiceURL       string
+	ServiceID        string
+	PublicIP         string
 	RequiredServices []ServiceName
 	ServiceUpdateURL string
 }
@@ -33,6 +38,7 @@ var ServerPort string
 var ServerURL string
 
 func init() {
+	utils.LoadEnv()
 	// Load environment variables
 	// For registry server, the ServerIP and ServerPort should be the addr it listens on, such as localhost:3000 or [::]:80
 	ServerIP = os.Getenv("Registry_IP")

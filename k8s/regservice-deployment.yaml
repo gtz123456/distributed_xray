@@ -15,7 +15,7 @@ spec:
       containers:
         - name: regservice
           image: gtzfw/distributed_xray:regservice-latest
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           ports:
             - containerPort: 80
 

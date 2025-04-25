@@ -10,7 +10,9 @@ import (
 
 func Start(ctx context.Context, host, port string, reg registry.Registration, registerHundlersFunc func()) (context.Context, error) {
 	registerHundlersFunc()
+	log.Printf("Starting service %s at %s:%s\n", reg.ServiceName, host, port)
 	ctx = startService(ctx, reg.ServiceName, host, port)
+	log.Printf("Service %s started at %s:%s\n", reg.ServiceName, host, port)
 
 	err := registry.RegisterService(reg)
 	if err != nil {

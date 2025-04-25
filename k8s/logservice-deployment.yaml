@@ -15,6 +15,7 @@ spec:
       containers:
         - name: logservice
           image: gtzfw/distributed_xray:logservice-latest
+          imagePullPolicy: Always
           env:
             - name: Registry_IP
               value: "regservice"

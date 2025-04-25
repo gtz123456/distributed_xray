@@ -13,8 +13,9 @@ import (
 func main() {
 	utils.LoadEnv()
 
-	http.Handle("/services", &registry.RegistryService{})
-	http.Handle("/heartbeat/", heartbeat.NewHeartBeatServer())
+	HBServer := heartbeat.NewHeartBeatServer()
+	http.Handle("/heartbeat/", HBServer)
+	http.Handle("/services", registry.NewRegistryService(HBServer))
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

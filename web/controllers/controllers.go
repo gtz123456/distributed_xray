@@ -41,13 +41,20 @@ func Signup(c *gin.Context) {
 
 	// Create the user
 	UUID := uuid.New().String()
-	user := db.User{Email: body.Email, Password: string(hash), UUID: UUID}
+
+	user := db.User{
+		Email:     body.Email,
+		Password:  string(hash),
+		UUID:      UUID,
+		PlanStart: time.Now(),
+		PlanEnd:   time.Now().Add(30 * 24 * time.Hour),
+	}
 
 	result := db.DB.Create(&user)
 
 	if result.Error != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Failed to create user.",
+			"error": "Failed to create user." + result.Error.Error(),
 		})
 	}
 
@@ -117,12 +124,13 @@ func Login(c *gin.Context) {
 }
 
 func User(c *gin.Context) {
-	user, _ := c.Get("user")
+	// user, _ := c.Get("user")
 
-	userinfo := user.(db.User)
+	// userinfo := user.(db.User)
 
 	c.JSON(http.StatusOK, gin.H{
-		"UUID": userinfo.UUID,
+		// "UUID": userinfo.UUID,
+		"UUID": "cbcb66f7-a1e2-4b6f-a1b3-5599dd95bb9c", // for testing purpose, remove this line in production!
 	})
 }
 
@@ -133,18 +141,23 @@ func Realitykey(c *gin.Context) {
 }
 
 type Server struct {
-	IP                string   `json:"ip"`
-	IPV6              string   `json:"ipv6"`
-	Tags              []string `json:"tags"`
-	TrafficMultiplier int      `json:"traffic_multiplier"` // 0 means free, and for better servers the value will be higher
+	IP          string   `json:"ip"`
+	IPV6        string   `json:"ipv6"`
+	Description string   `json:"description"`
+	Tags        []string `json:"tags"`
+	// TrafficMultiplier int      `json:"traffic_multiplier"` // 0 means free, and for better servers the value will be higher
 }
 
 func GetServers() []Server {
 	// TODO: Fetch servers from registry and cache them
 	servers := []Server{
 		{
-			IP:                "146.235.210.34",
-			TrafficMultiplier: 1,
+			IP:          "146.235.210.34",
+			Description: "Oracle - San Jose",
+		},
+		{
+			IP:          "107.174.181.180",
+			Description: "racknerd - Los Angeles",
 		},
 	}
 	return servers
@@ -156,4 +169,30 @@ func Servers(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"servers": servers,
 	})
+}
+
+func Version(c *gin.Context) {
+	// returns if the version of client is supported or not
+	SupportedVersions := map[string]bool{
+		"0.1.0": true,
+	}
+	var body struct {
+		Version string `json:"version"`
+	}
+	if c.Bind(&body) != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Failed to read body",
+		})
+		return
+	}
+
+	if _, ok := SupportedVersions[body.Version]; !ok {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Unsupported version",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{})
+
 }

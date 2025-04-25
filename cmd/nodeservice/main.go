@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 	"go-distributed/log"
+	"go-distributed/node"
 	"go-distributed/registry"
 	"go-distributed/service"
-	"go-distributed/shell"
 	"go-distributed/utils"
 	stlog "log"
 	"net/http"
@@ -21,22 +21,33 @@ import (
 func main() {
 	utils.LoadEnv()
 
-	host := utils.GetHostIP()
+	host, err := utils.GetHostIP()
+	if err != nil {
+		stlog.Fatalln("Error getting host IP:", err)
+	}
 	port := os.Getenv("Node_Port")
 	if port == "" {
 		port = "80"
 	}
 
 	serviceAddress := fmt.Sprintf("http://%v:%v", host, port)
+	fmt.Println("Service address: ", serviceAddress)
+
+	publicIP, err := utils.GetPublicIP()
+
+	if err != nil {
+		stlog.Fatalln("Error getting public IP:", err)
+	}
 
 	r := registry.Registration{
 		ServiceName:      registry.NodeService,
 		ServiceURL:       serviceAddress,
+		PublicIP:         publicIP,
 		RequiredServices: []registry.ServiceName{registry.LogService, registry.WebService},
 		ServiceUpdateURL: serviceAddress + "/services",
 	}
 
-	ctx, err := service.Start(context.Background(), host, port, r, shell.RegisterHandlers)
+	ctx, err := service.Start(context.Background(), host, port, r, node.RegisterHandlers)
 	if err != nil {
 		stlog.Fatalln(err)
 	}
@@ -84,15 +95,16 @@ func main() {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		stlog.Fatalf("Error getting reality key from web service: %v", resp.Status)
+		stlog.Println("Error getting reality key from web service: %v", resp.Status)
 	}
 
 	realitykey := make([]byte, 64)
 	_, err = resp.Body.Read(realitykey)
 	if err != nil {
-		stlog.Fatalf("Error reading reality key from web service: %v", err)
+		stlog.Println("Error reading reality key from web service: %v", err)
 	}
 
+	stlog.Println("Reality key obtained from web service: ", string(realitykey))
 	utils.ConfigXray(string(realitykey))
 
 	utils.LaunchXray()

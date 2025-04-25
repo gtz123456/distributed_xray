@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"go-distributed/registry/heartbeat"
 	"go-distributed/utils"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
@@ -20,6 +21,7 @@ func RegisterService(r Registration) error {
 	}
 
 	log.Println("Service update URL Path: ", serviceUpdatedURL.Path)
+	log.Println("Service URL: ", r.ServiceURL)
 	http.Handle(serviceUpdatedURL.Path, &serviceUpdateHandler{})
 
 	buf := new(bytes.Buffer)
@@ -43,27 +45,36 @@ func RegisterService(r Registration) error {
 	for {
 		resp, err := http.DefaultClient.Do(res)
 		if err == nil && resp.StatusCode == http.StatusOK {
+			body, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return err
+			}
+			r.ServiceID = string(body)
+			log.Printf("Service registered with ID: %s\n", r.ServiceID)
 			break
 		}
 		log.Println("Failed to register service. Retry after 3 seconds...")
 		time.Sleep(3 * time.Second)
 	}
 
-	log.Println("Service registered successfully")
-
-	// Start sending heartbeats
 	interval := 3 * time.Second
 
-	registryHeartbeatURL := "http://localhost:3000/heartbeat/basic"
+	registryHeartbeatURL := "http://" + ServerIP + ":" + ServerPort + "/heartbeat/"
 
 	hb := heartbeat.BasicHeartbeat{
-		URL: registryHeartbeatURL,
+		ServiceID: r.ServiceID,
+		URL:       registryHeartbeatURL,
 	}
 
 	go func() {
 		for {
-			hb.SendHeartbeat()
+			log.Println("Sending heartbeat to registry service at " + registryHeartbeatURL)
+			err = hb.SendHeartbeat()
+			if err != nil {
+				log.Printf("Failed to send heartbeat: %v\n", err)
+			}
 			time.Sleep(interval)
+			log.Printf("Sent heartbeat to registry service at %s\n", registryHeartbeatURL)
 		}
 	}()
 

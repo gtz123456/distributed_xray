@@ -1,8 +1,8 @@
 package heartbeat
 
 import (
-	"encoding/json"
-	"log"
+	"fmt"
+	"io"
 	"net/http"
 	"sync"
 	"time"
@@ -15,18 +15,18 @@ type HeartBeatHandler interface {
 type HeartBeatServer struct {
 	HeartBeatTypeMap map[string]HeartBeatHandler
 	LastHeartBeat    map[string]time.Time
-	mutex            *sync.RWMutex
+	Mutex            *sync.RWMutex
 }
 
 func NewHeartBeatServer() *HeartBeatServer {
 	HeartBeatServer := &HeartBeatServer{
 		HeartBeatTypeMap: nil,
 		LastHeartBeat:    make(map[string]time.Time),
-		mutex:            new(sync.RWMutex),
+		Mutex:            &sync.RWMutex{},
 	}
 	HeartBeatTypeMap := make(map[string]HeartBeatHandler)
 	HeartBeatTypeMap["/heartbeat/basic"] = &BasicHeartbeatHandler{BaseHeartBeatHandler{server: HeartBeatServer}}
-	HeartBeatTypeMap["/heartbeat/info"] = &ServerInfoHeartbeatHandler{BaseHeartBeatHandler{server: HeartBeatServer}}
+	// HeartBeatTypeMap["/heartbeat/info"] = &ServerInfoHeartbeatHandler{BaseHeartBeatHandler{server: HeartBeatServer}}
 	HeartBeatServer.HeartBeatTypeMap = HeartBeatTypeMap
 	return HeartBeatServer
 }
@@ -36,12 +36,21 @@ type BaseHeartBeatHandler struct {
 }
 
 func (b *BaseHeartBeatHandler) HandleCommonLogic(w http.ResponseWriter, r *http.Request) {
-	b.server.mutex.Lock()
-	defer b.server.mutex.Unlock()
+	b.server.Mutex.Lock()
+	defer b.server.Mutex.Unlock()
 
-	srcAddr := r.RemoteAddr
+	ServiceID, err := io.ReadAll(r.Body)
 
-	b.server.LastHeartBeat[srcAddr] = time.Now()
+	if err != nil || len(ServiceID) == 0 {
+		http.Error(w, "Invalid ServiceID", http.StatusBadRequest)
+		return
+	}
+
+	ServiceIDStr := string(ServiceID)
+
+	b.server.LastHeartBeat[ServiceIDStr] = time.Now()
+
+	fmt.Printf("Received heartbeat from %s\n", ServiceIDStr, b.server.LastHeartBeat[ServiceIDStr])
 
 	w.WriteHeader(http.StatusOK)
 }
@@ -54,6 +63,7 @@ func (h *BasicHeartbeatHandler) HandleHeartbeat(w http.ResponseWriter, r *http.R
 	h.HandleCommonLogic(w, r)
 }
 
+/*
 type ServerInfoHeartbeatHandler struct {
 	BaseHeartBeatHandler
 }
@@ -74,12 +84,12 @@ func (h *ServerInfoHeartbeatHandler) HandleHeartbeat(w http.ResponseWriter, r *h
 	log.Printf("Received server info from %s: CPU Usage=%s, Memory Usage=%s", srcAddr, info.CPUUsage, info.MemoryUsage)
 
 	h.HandleCommonLogic(w, r)
-}
+} */
 
 func (h *HeartBeatServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	h.mutex.Lock()
+	h.Mutex.Lock()
 	handler := h.HeartBeatTypeMap[r.URL.Path]
-	h.mutex.Unlock()
+	h.Mutex.Unlock()
 
 	if handler == nil {
 		w.WriteHeader(http.StatusNotFound)
