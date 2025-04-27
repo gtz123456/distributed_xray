@@ -29,7 +29,7 @@ func Connect() {
 	sqlDB, _ := tempDB.DB()
 	sqlDB.Close()
 
-	dsnWithDB := dsn + "vpn?charset=utf8mb4&parseTime=True&loc=Local"
+	dsnWithDB := dsn // + "/vpn?charset=utf8mb4&parseTime=True&loc=Local"
 	DB, err = gorm.Open(mysql.Open(dsnWithDB), &gorm.Config{})
 	if err != nil {
 		panic(err)

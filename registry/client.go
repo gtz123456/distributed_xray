@@ -14,19 +14,10 @@ import (
 	"time"
 )
 
-func RegisterService(r Registration) error {
-	serviceUpdatedURL, err := url.Parse(r.ServiceUpdateURL)
-	if err != nil {
-		return err
-	}
-
-	log.Println("Service update URL Path: ", serviceUpdatedURL.Path)
-	log.Println("Service URL: ", r.ServiceURL)
-	http.Handle(serviceUpdatedURL.Path, &serviceUpdateHandler{})
-
+func RegisterRequest(r *Registration) error {
 	buf := new(bytes.Buffer)
 	enc := json.NewEncoder(buf)
-	err = enc.Encode(r)
+	err := enc.Encode(r)
 
 	if err != nil {
 		return err
@@ -57,6 +48,24 @@ func RegisterService(r Registration) error {
 		time.Sleep(3 * time.Second)
 	}
 
+	return nil
+}
+
+func RegisterService(r Registration) error {
+	serviceUpdatedURL, err := url.Parse(r.ServiceUpdateURL)
+	if err != nil {
+		return err
+	}
+
+	log.Println("Service update URL Path: ", serviceUpdatedURL.Path)
+	log.Println("Service URL: ", r.ServiceURL)
+	http.Handle(serviceUpdatedURL.Path, &serviceUpdateHandler{})
+
+	err = RegisterRequest(&r)
+	if err != nil {
+		log.Println("Failed to register service: ", err)
+	}
+
 	interval := 3 * time.Second
 
 	registryHeartbeatURL := "http://" + ServerIP + ":" + ServerPort + "/heartbeat/"
@@ -72,6 +81,14 @@ func RegisterService(r Registration) error {
 			err = hb.SendHeartbeat()
 			if err != nil {
 				log.Printf("Failed to send heartbeat: %v\n", err)
+				// register service again if returns 401 Unauthorized
+				if err.Error() == "service not authorized" {
+					log.Println("Re-registering service...")
+					err = RegisterRequest(&r)
+					if err != nil {
+						log.Printf("Failed to re-register service: %v\n", err)
+					}
+				}
 			}
 			time.Sleep(interval)
 			log.Printf("Sent heartbeat to registry service at %s\n", registryHeartbeatURL)

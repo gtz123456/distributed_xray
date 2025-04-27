@@ -15,10 +15,14 @@ func (b *BasicHeartbeat) SendHeartbeat() error {
 	// fmt.Println("Sending heartbeat to registry")
 	res, err := http.Post(b.URL+"basic", "application/json", strings.NewReader(b.ServiceID))
 	if err != nil {
-		fmt.Printf("failed to send heartbeat: %v\n", err)
 		return err
 	}
 	if res.StatusCode != http.StatusOK {
+		if res.StatusCode == http.StatusUnauthorized {
+			fmt.Println("Service not authorized")
+			return fmt.Errorf("service not authorized")
+		}
+
 		return fmt.Errorf("failed to send heartbeat. Registry service responed with status code %v", res.StatusCode)
 	}
 	// fmt.Println("Heartbeat sent")

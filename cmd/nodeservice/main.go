@@ -9,7 +9,6 @@ import (
 	"go-distributed/service"
 	"go-distributed/utils"
 	stlog "log"
-	"net/http"
 	"os"
 	"time"
 
@@ -86,9 +85,9 @@ func main() {
 
 	fmt.Printf("Web service found at %s\n", WebProviders)
 
-	WebProvider := WebProviders[0]
+	// WebProvider := WebProviders[0]
 
-	resp, err := http.Get(fmt.Sprintf("%s/realitykey", WebProvider))
+	/*resp, err := http.Get(fmt.Sprintf("%s/realitykey", WebProvider))
 	if err != nil {
 		stlog.Println("Error getting reality key from web service: %v", err)
 	}
@@ -104,10 +103,15 @@ func main() {
 		stlog.Println("Error reading reality key from web service: %v", err)
 	}
 
-	stlog.Println("Reality key obtained from web service: ", string(realitykey))
-	utils.ConfigXray(string(realitykey))
+	stlog.Println("Reality key obtained from web service: ", string(realitykey))*/
+	REALITY_PRIKEY := os.Getenv("REALITY_PRIKEY")
 
-	utils.LaunchXray()
+	utils.ConfigXray(string(REALITY_PRIKEY))
+
+	err = utils.LaunchXray()
+	if err != nil {
+		stlog.Fatalln("Error launching xray:", err)
+	}
 	fmt.Println("Xray launched")
 	<-ctx.Done()
 }

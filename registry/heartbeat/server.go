@@ -1,8 +1,8 @@
 package heartbeat
 
 import (
-	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"sync"
 	"time"
@@ -15,6 +15,7 @@ type HeartBeatHandler interface {
 type HeartBeatServer struct {
 	HeartBeatTypeMap map[string]HeartBeatHandler
 	LastHeartBeat    map[string]time.Time
+	Validator        ServiceValidator
 	Mutex            *sync.RWMutex
 }
 
@@ -25,32 +26,33 @@ func NewHeartBeatServer() *HeartBeatServer {
 		Mutex:            &sync.RWMutex{},
 	}
 	HeartBeatTypeMap := make(map[string]HeartBeatHandler)
-	HeartBeatTypeMap["/heartbeat/basic"] = &BasicHeartbeatHandler{BaseHeartBeatHandler{server: HeartBeatServer}}
+	HeartBeatTypeMap["/heartbeat/basic"] = &BasicHeartbeatHandler{BaseHeartBeatHandler{Server: HeartBeatServer}}
 	// HeartBeatTypeMap["/heartbeat/info"] = &ServerInfoHeartbeatHandler{BaseHeartBeatHandler{server: HeartBeatServer}}
 	HeartBeatServer.HeartBeatTypeMap = HeartBeatTypeMap
 	return HeartBeatServer
 }
 
 type BaseHeartBeatHandler struct {
-	server *HeartBeatServer
+	Server *HeartBeatServer
 }
 
 func (b *BaseHeartBeatHandler) HandleCommonLogic(w http.ResponseWriter, r *http.Request) {
-	b.server.Mutex.Lock()
-	defer b.server.Mutex.Unlock()
-
 	ServiceID, err := io.ReadAll(r.Body)
-
 	if err != nil || len(ServiceID) == 0 {
 		http.Error(w, "Invalid ServiceID", http.StatusBadRequest)
+		log.Println("Invalid ServiceID:", ServiceID)
+		return
+	}
+	ServiceIDStr := string(ServiceID)
+
+	if b.Server.Validator == nil || !b.Server.Validator.IsServiceRegistered(ServiceIDStr) {
+		http.Error(w, "Service not authorized", http.StatusUnauthorized)
 		return
 	}
 
-	ServiceIDStr := string(ServiceID)
-
-	b.server.LastHeartBeat[ServiceIDStr] = time.Now()
-
-	fmt.Printf("Received heartbeat from %s\n", ServiceIDStr, b.server.LastHeartBeat[ServiceIDStr])
+	b.Server.Mutex.Lock()
+	b.Server.LastHeartBeat[ServiceIDStr] = time.Now()
+	b.Server.Mutex.Unlock()
 
 	w.WriteHeader(http.StatusOK)
 }

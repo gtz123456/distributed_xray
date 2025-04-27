@@ -14,6 +14,10 @@ type Heartbeat struct {
 	Strategy HeartbeatStrategy
 }
 
+type ServiceValidator interface {
+	IsServiceRegistered(serviceID string) bool
+}
+
 func (h *Heartbeat) Send() {
 	err := h.Strategy.SendHeartbeat()
 	if err != nil {

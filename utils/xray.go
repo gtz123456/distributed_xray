@@ -6,25 +6,30 @@ import (
 	"runtime"
 )
 
-func LaunchXray() {
-	path := "/app/bin/xray"
+func LaunchXray() error {
+	path := "./app/bin/xray"
 
 	// add arm64 support
 	if runtime.GOARCH == "arm64" {
 		path += "_arm"
 	}
 
+	// print system path
+	fmt.Println("System path: " + path)
+
 	// launch xray
-	fmt.Println("Launching xray" + path)
+	fmt.Println("Launching xray " + path)
 	cmd := exec.Command(path)
 
 	err := cmd.Start()
 	if err != nil {
 		fmt.Println("Error launching xray: " + err.Error())
-		panic(err)
+		return err
 	}
+
+	return nil
 }
 
 func ConfigXray(realitykey string) {
-	// configuration logic for xray
+	// TODO: configuration logic for xray
 }

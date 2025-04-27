@@ -231,6 +231,13 @@ func (s RegistryService) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// generate uuid as ServiceID
 		r.ServiceID = utils.GenerateUUID()
 
+		// update last heartbeat for the service
+		if r.ServiceID != "" {
+			reg.heartbeatServer.Mutex.Lock()
+			reg.heartbeatServer.LastHeartBeat[r.ServiceID] = time.Now()
+			reg.heartbeatServer.Mutex.Unlock()
+		}
+
 		// Add the service to the registry
 		err = reg.add(r)
 		if err != nil {
@@ -269,6 +276,20 @@ func (s RegistryService) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (r *registry) IsServiceRegistered(serviceID string) bool {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+
+	for _, registrations := range r.registrationsMap {
+		for _, registration := range registrations {
+			if registration.ServiceID == serviceID {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // remove inactive services from the registry
 func removeInactiveServices() {
 	var snapshot map[ServiceName][]Registration
@@ -304,6 +325,8 @@ func removeInactiveServices() {
 
 func NewRegistryService(HBServer *heartbeat.HeartBeatServer) *RegistryService {
 	reg.heartbeatServer = HBServer
+	reg.heartbeatServer.Validator = &reg
+
 	go func() {
 		for range time.Tick(20 * time.Second) {
 			log.Println("Checking inactive services...")
