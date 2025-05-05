@@ -23,12 +23,12 @@ func (r *registry) add(reg Registration) error {
 	// Check and remove duplicate registrations
 	r.mutex.Lock()
 	exists := false
-	for _, existingReg := range r.registrationsMap[reg.ServiceName] {
+	/* for _, existingReg := range r.registrationsMap[reg.ServiceName] {
 		if existingReg.ServiceURL == reg.ServiceURL {
 			exists = true
 			break
 		}
-	}
+	} */
 	if !exists {
 		r.registrationsMap[reg.ServiceName] = append(r.registrationsMap[reg.ServiceName], reg)
 	}

@@ -76,7 +76,7 @@ func main() {
 		WebProviders, err = registry.GetProviders(registry.WebService)
 
 		if err != nil {
-			stlog.Println("Error getting log service:" + err.Error() + ". Retrying in 3 seconds")
+			stlog.Println("Error getting web service:" + err.Error() + ". Retrying in 3 seconds")
 			time.Sleep(3 * time.Second)
 		} else {
 			break

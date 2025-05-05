@@ -21,7 +21,8 @@ func main() {
 	defer cancel()
 
 	var srv http.Server
-	srv.Addr = registry.ServerIP + ":" + registry.ServerPort
+	// srv.Addr = registry.ServerIP + ":" + registry.ServerPort
+	srv.Addr = ":" + registry.ServerPort
 
 	go func() {
 		log.Println(srv.ListenAndServe())

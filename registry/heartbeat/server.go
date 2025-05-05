@@ -45,7 +45,13 @@ func (b *BaseHeartBeatHandler) HandleCommonLogic(w http.ResponseWriter, r *http.
 	}
 	ServiceIDStr := string(ServiceID)
 
-	if b.Server.Validator == nil || !b.Server.Validator.IsServiceRegistered(ServiceIDStr) {
+	if b.Server.Validator == nil {
+		log.Println("No validator set for the heartbeat server")
+		http.Error(w, "No validator set for the heartbeat server", http.StatusInternalServerError)
+		return
+	}
+
+	if !b.Server.Validator.IsServiceRegistered(ServiceIDStr) {
 		http.Error(w, "Service not authorized", http.StatusUnauthorized)
 		return
 	}

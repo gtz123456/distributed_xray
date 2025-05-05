@@ -83,6 +83,7 @@ func RegisterService(r Registration) error {
 				log.Printf("Failed to send heartbeat: %v\n", err)
 				// register service again if returns 401 Unauthorized
 				if err.Error() == "service not authorized" {
+					time.Sleep(interval)
 					log.Println("Re-registering service...")
 					err = RegisterRequest(&r)
 					if err != nil {
@@ -122,7 +123,7 @@ func (s *serviceUpdateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 	}
 
 	fmt.Println("Received patch: ", p)
-	prov.Update(p)
+	Prov.Update(p)
 }
 
 func ShutdownService(url string) error {
@@ -184,13 +185,13 @@ func (p *providers) get(name ServiceName) ([]string, error) {
 }
 
 func GetProviders(name ServiceName) ([]string, error) {
-	prov.mutex.RLock()
-	defer prov.mutex.RUnlock()
+	Prov.mutex.RLock()
+	defer Prov.mutex.RUnlock()
 
-	return prov.get(name)
+	return Prov.get(name)
 }
 
-var prov = providers{
+var Prov = providers{
 	services: make(map[ServiceName][]string),
 	mutex:    new(sync.RWMutex),
 }

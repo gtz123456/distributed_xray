@@ -2,12 +2,13 @@ package utils
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"runtime"
 )
 
 func LaunchXray() error {
-	path := "./app/bin/xray"
+	path := os.Getenv("XRAY_PATH")
 
 	// add arm64 support
 	if runtime.GOARCH == "arm64" {

@@ -58,7 +58,7 @@ func main() {
 	reg := registry.Registration{
 		ServiceName:      registry.WebService,
 		ServiceURL:       fmt.Sprintf("http://%v:%v", host, GINPORT),
-		RequiredServices: make([]registry.ServiceName, 0),
+		RequiredServices: []registry.ServiceName{registry.NodeService, registry.WebService},
 		ServiceUpdateURL: serviceAddress + "/service",
 	}
 
