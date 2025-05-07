@@ -14,7 +14,7 @@ func Start(ctx context.Context, host, port string, reg registry.Registration, re
 	ctx = startService(ctx, reg.ServiceName, host, port)
 	log.Printf("Service %s started at %s:%s\n", reg.ServiceName, host, port)
 
-	err := registry.RegisterService(reg)
+	err := registry.RegisterService(&reg)
 	if err != nil {
 		return ctx, err
 	}

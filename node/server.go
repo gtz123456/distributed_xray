@@ -65,8 +65,8 @@ func (sh *nodeHandler) handleInfo(w http.ResponseWriter, r *http.Request) {
 }
 
 func (sh *nodeHandler) handleLimit(w http.ResponseWriter, r *http.Request) {
-	// only accept request from user service
-	userServiceAddrs, err := registry.GetProviders(registry.WebService)
+	// only accept request from web service
+	providers, err := registry.GetProviders(registry.WebService)
 
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -82,8 +82,8 @@ func (sh *nodeHandler) handleLimit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	allowed := false
-	for _, addr := range userServiceAddrs {
-		if addr == srcIP {
+	for _, prov := range providers {
+		if prov.PublicIP == srcIP {
 			allowed = true
 			break
 		}

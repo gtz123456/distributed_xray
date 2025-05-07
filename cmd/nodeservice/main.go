@@ -51,7 +51,7 @@ func main() {
 		stlog.Fatalln(err)
 	}
 
-	var logProviders []string
+	var logProviders []registry.Registration
 
 	for {
 		logProviders, err = registry.GetProviders(registry.LogService)
@@ -68,10 +68,10 @@ func main() {
 	// select a logger provider randomly
 	// TODO: Select logger based on lattency??
 	logProvider := logProviders[rand.Intn(len(logProviders))]
-	log.SetClientLogger(logProvider, r.ServiceName)
+	log.SetClientLogger(logProvider.ServiceURL, r.ServiceName)
 
 	// get config from web service
-	var WebProviders []string
+	var WebProviders []registry.Registration
 	for {
 		WebProviders, err = registry.GetProviders(registry.WebService)
 

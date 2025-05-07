@@ -51,7 +51,7 @@ func main() {
 	fmt.Printf("Logging service found at %s\n", logProviders)
 	// select a logger provider randomly
 	logProvider := logProviders[rand.Intn(len(logProviders))]
-	log.SetClientLogger(logProvider, r.ServiceName)
+	log.SetClientLogger(logProvider.ServiceURL, r.ServiceName)
 
 	<-ctx.Done()
 }

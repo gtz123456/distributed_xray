@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"go-distributed/registry"
 	"go-distributed/web/db"
 	"net/http"
 	"os"
@@ -150,15 +151,23 @@ type Server struct {
 
 func GetServers() []Server {
 	// TODO: Fetch servers from registry and cache them
-	servers := []Server{
-		{
-			IP:          "146.235.210.34",
-			Description: "Oracle - San Jose",
-		},
-		{
-			IP:          "107.174.181.180",
-			Description: "racknerd - Los Angeles",
-		},
+	regs, err := registry.GetProviders(registry.NodeService)
+
+	if err != nil {
+		return []Server{}
+	}
+
+	servers := []Server{}
+
+	for _, reg := range regs {
+		server := Server{
+			IP:          reg.PublicIP,
+			IPV6:        "",
+			Description: reg.Description,
+			Tags:        []string{},
+		}
+
+		servers = append(servers, server)
 	}
 	return servers
 }

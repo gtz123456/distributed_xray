@@ -51,7 +51,7 @@ func RegisterRequest(r *Registration) error {
 	return nil
 }
 
-func RegisterService(r Registration) error {
+func RegisterService(r *Registration) error {
 	serviceUpdatedURL, err := url.Parse(r.ServiceUpdateURL)
 	if err != nil {
 		return err
@@ -61,7 +61,7 @@ func RegisterService(r Registration) error {
 	log.Println("Service URL: ", r.ServiceURL)
 	http.Handle(serviceUpdatedURL.Path, &serviceUpdateHandler{})
 
-	err = RegisterRequest(&r)
+	err = RegisterRequest(r)
 	if err != nil {
 		log.Println("Failed to register service: ", err)
 	}
@@ -82,13 +82,15 @@ func RegisterService(r Registration) error {
 			if err != nil {
 				log.Printf("Failed to send heartbeat: %v\n", err)
 				// register service again if returns 401 Unauthorized
-				if err.Error() == "service not authorized" {
+				log.Println("error " + err.Error())
+				if err.Error() == "Service not authorized" {
 					time.Sleep(interval)
 					log.Println("Re-registering service...")
-					err = RegisterRequest(&r)
+					err = RegisterRequest(r)
 					if err != nil {
 						log.Printf("Failed to re-register service: %v\n", err)
 					}
+					hb.ServiceID = r.ServiceID
 				}
 			}
 			time.Sleep(interval)
@@ -147,7 +149,7 @@ func ShutdownService(url string) error {
 }
 
 type providers struct {
-	services map[ServiceName][]string
+	services map[ServiceName][]Registration
 	mutex    *sync.RWMutex
 }
 
@@ -155,36 +157,39 @@ func (p *providers) Update(patch patch) {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 
-	for _, patchEntry := range patch.Added {
-		if _, ok := p.services[patchEntry.Name]; !ok {
-			p.services[patchEntry.Name] = make([]string, 0)
+	for _, reg := range patch.Added {
+		if _, ok := p.services[reg.ServiceName]; !ok {
+			p.services[reg.ServiceName] = make([]Registration, 0)
 		}
-
-		p.services[patchEntry.Name] = append(p.services[patchEntry.Name], patchEntry.URL)
+		p.services[reg.ServiceName] = append(p.services[reg.ServiceName], reg)
 	}
 
-	for _, patchEntry := range patch.Removed {
-		if urls, ok := p.services[patchEntry.Name]; ok {
-			for i := range urls {
-				if urls[i] == patchEntry.URL {
-					p.services[patchEntry.Name] = append(urls[:i], urls[i+1:]...)
-				}
+	for _, reg := range patch.Removed {
+		log.Println("Removing service: ", reg.ServiceName, reg.ServiceID)
+		if _, ok := p.services[reg.ServiceName]; !ok {
+			continue
+		}
+		for i, r := range p.services[reg.ServiceName] {
+			log.Println("Compare service ID: ", r.ServiceID, reg.ServiceID)
+			if r.ServiceID == reg.ServiceID {
+				p.services[reg.ServiceName] = append(p.services[reg.ServiceName][:i], p.services[reg.ServiceName][i+1:]...)
+				break
 			}
 		}
 	}
 }
 
-func (p *providers) get(name ServiceName) ([]string, error) {
+func (p *providers) get(name ServiceName) ([]Registration, error) {
 
-	urls, ok := p.services[name]
+	regs, ok := p.services[name]
 	if !ok {
 		return nil, fmt.Errorf("service %v not found", name)
 	}
 
-	return urls, nil
+	return regs, nil
 }
 
-func GetProviders(name ServiceName) ([]string, error) {
+func GetProviders(name ServiceName) ([]Registration, error) {
 	Prov.mutex.RLock()
 	defer Prov.mutex.RUnlock()
 
@@ -192,6 +197,6 @@ func GetProviders(name ServiceName) ([]string, error) {
 }
 
 var Prov = providers{
-	services: make(map[ServiceName][]string),
+	services: make(map[ServiceName][]Registration),
 	mutex:    new(sync.RWMutex),
 }

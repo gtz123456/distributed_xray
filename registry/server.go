@@ -35,12 +35,7 @@ func (r *registry) add(reg Registration) error {
 	r.mutex.Unlock()
 	err := r.sendRequiredServices(reg)
 	r.notify(patch{
-		Added: []patchEntry{
-			{
-				Name: reg.ServiceName,
-				URL:  reg.ServiceURL,
-			},
-		},
+		Added: []Registration{reg},
 	})
 	return err
 }
@@ -49,12 +44,7 @@ func (r *registry) remove(serviceName ServiceName, url string) error {
 	for i := range r.registrationsMap[serviceName] {
 		if string(r.registrationsMap[serviceName][i].ServiceURL) == url {
 			r.notify(patch{
-				Removed: []patchEntry{
-					{
-						Name: r.registrationsMap[serviceName][i].ServiceName,
-						URL:  r.registrationsMap[serviceName][i].ServiceURL,
-					},
-				},
+				Removed: []Registration{r.registrationsMap[serviceName][i]},
 			})
 			r.mutex.Lock()
 			r.registrationsMap[serviceName] = append(r.registrationsMap[serviceName][:i], r.registrationsMap[serviceName][i+1:]...)
@@ -74,16 +64,16 @@ func (r registry) notify(fullPatch patch) {
 		for _, reg := range regs {
 			go func(reg Registration) {
 				for _, reqService := range reg.RequiredServices {
-					p := patch{Added: []patchEntry{}, Removed: []patchEntry{}}
+					p := patch{Added: []Registration{}, Removed: []Registration{}}
 					sendUpdate := false
 					for _, added := range fullPatch.Added {
-						if added.Name == reqService {
+						if added.ServiceName == reqService {
 							p.Added = append(p.Added, added)
 							sendUpdate = true
 						}
 					}
 					for _, removed := range fullPatch.Removed {
-						if removed.Name == reqService {
+						if removed.ServiceName == reqService {
 							p.Removed = append(p.Removed, removed)
 							sendUpdate = true
 						}
@@ -110,10 +100,7 @@ func (r registry) sendRequiredServices(reg Registration) error {
 	for _, serviceName := range reg.RequiredServices {
 		if services, ok := r.registrationsMap[serviceName]; ok {
 			for _, service := range services {
-				p.Added = append(p.Added, patchEntry{
-					Name: service.ServiceName, // Use the Name for the entry
-					URL:  service.ServiceURL,  // Use the ServiceURL for the entry
-				})
+				p.Added = append(p.Added, service)
 			}
 		}
 	}
@@ -280,8 +267,10 @@ func (r *registry) IsServiceRegistered(serviceID string) bool {
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
 
+	// log.Println("Checking if service is registered with ID: ", serviceID)
 	for _, registrations := range r.registrationsMap {
 		for _, registration := range registrations {
+			// log.Println("Checking service: ", registration.ServiceName, " at URL: ", registration.ServiceURL, " with ID: ", registration.ServiceID)
 			if registration.ServiceID == serviceID {
 				return true
 			}

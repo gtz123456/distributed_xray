@@ -24,14 +24,9 @@ const (
 	WebService   = ServiceName("WebService")
 )
 
-type patchEntry struct {
-	Name ServiceName
-	URL  string
-}
-
 type patch struct {
-	Added   []patchEntry `json:"added"`
-	Removed []patchEntry `json:"removed"`
+	Added   []Registration `json:"added"`
+	Removed []Registration `json:"removed"`
 }
 
 var ServerIP string

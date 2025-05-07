@@ -20,7 +20,7 @@ func (b *BasicHeartbeat) SendHeartbeat() error {
 	if res.StatusCode != http.StatusOK {
 		if res.StatusCode == http.StatusUnauthorized {
 			fmt.Println("Service not authorized")
-			return fmt.Errorf("service not authorized")
+			return fmt.Errorf("Service not authorized")
 		}
 
 		return fmt.Errorf("failed to send heartbeat. Registry service responed with status code %v", res.StatusCode)
