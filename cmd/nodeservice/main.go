@@ -104,6 +104,7 @@ func main() {
 	}
 
 	stlog.Println("Reality key obtained from web service: ", string(realitykey))*/
+
 	REALITY_PRIKEY := os.Getenv("REALITY_PRIKEY")
 
 	utils.ConfigXray(string(REALITY_PRIKEY))

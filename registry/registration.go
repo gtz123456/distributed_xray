@@ -18,10 +18,11 @@ type Registration struct {
 type ServiceName string
 
 const (
-	LogService   = ServiceName("LogService")
-	ShellService = ServiceName("ShellService")
-	NodeService  = ServiceName("NodeService")
-	WebService   = ServiceName("WebService")
+	LogService     = ServiceName("LogService")
+	ShellService   = ServiceName("ShellService")
+	NodeService    = ServiceName("NodeService")
+	WebService     = ServiceName("WebService")
+	PaymentService = ServiceName("PaymentService")
 )
 
 type patch struct {
