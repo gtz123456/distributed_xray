@@ -33,3 +33,18 @@ func GetPublicIP() (string, error) {
 
 	return string(ip), nil
 }
+
+func GetPublicIPv6() (string, error) {
+	resp, err := http.Get("https://api64.ipify.org?format=text")
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	ip, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	return string(ip), nil
+}

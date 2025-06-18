@@ -20,19 +20,23 @@ type registry struct {
 }
 
 func (r *registry) add(reg Registration) error {
-	// Check and remove duplicate registrations
-	r.mutex.Lock()
-	exists := false
-	/* for _, existingReg := range r.registrationsMap[reg.ServiceName] {
-		if existingReg.ServiceURL == reg.ServiceURL {
-			exists = true
-			break
+	// Check duplicate service with the same URL. If so, remove the old registration
+	if len(r.registrationsMap[reg.ServiceName]) > 0 {
+		for i := range r.registrationsMap[reg.ServiceName] {
+			if string(r.registrationsMap[reg.ServiceName][i].ServiceURL) == string(reg.ServiceURL) {
+				log.Printf("Service with URL %s already registered. Removing old registration.", reg.ServiceURL)
+				r.notify(patch{
+					Removed: []Registration{r.registrationsMap[reg.ServiceName][i]},
+				})
+				r.registrationsMap[reg.ServiceName] = append(r.registrationsMap[reg.ServiceName][:i], r.registrationsMap[reg.ServiceName][i+1:]...)
+			}
 		}
-	} */
-	if !exists {
-		r.registrationsMap[reg.ServiceName] = append(r.registrationsMap[reg.ServiceName], reg)
 	}
+
+	r.mutex.Lock()
+	r.registrationsMap[reg.ServiceName] = append(r.registrationsMap[reg.ServiceName], reg)
 	r.mutex.Unlock()
+
 	err := r.sendRequiredServices(reg)
 	r.notify(patch{
 		Added: []Registration{reg},
@@ -99,9 +103,7 @@ func (r registry) sendRequiredServices(reg Registration) error {
 	// Create a patch with the current registrations for the required services
 	for _, serviceName := range reg.RequiredServices {
 		if services, ok := r.registrationsMap[serviceName]; ok {
-			for _, service := range services {
-				p.Added = append(p.Added, service)
-			}
+			p.Added = append(p.Added, services...)
 		}
 	}
 
@@ -141,7 +143,7 @@ func (r registry) sendPatch(url string, p patch) error {
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("Failed to send patch. Registry service responded with status code %v", resp.StatusCode)
+		return fmt.Errorf("failed to send patch. Registry service responded with status code %v", resp.StatusCode)
 	}
 
 	log.Println("Patch sent successfully")

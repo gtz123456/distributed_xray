@@ -39,7 +39,7 @@ func CORSMiddleware() gin.HandlerFunc {
 }
 
 func main() {
-	host, err := utils.GetHostIP()
+	host, err := utils.GetPublicIP()
 	if err != nil {
 		stlog.Fatalln("Error getting host IP:", err)
 	}
@@ -55,9 +55,16 @@ func main() {
 
 	serviceAddress := fmt.Sprintf("http://%v:%v", host, port)
 
+	publicIP, err := utils.GetPublicIP()
+
+	if err != nil {
+		stlog.Fatalln("Error getting public IP:", err)
+	}
+
 	reg := registry.Registration{
 		ServiceName:      registry.WebService,
 		ServiceURL:       fmt.Sprintf("http://%v:%v", host, GINPORT),
+		PublicIP:         publicIP,
 		RequiredServices: []registry.ServiceName{registry.NodeService, registry.WebService},
 		ServiceUpdateURL: serviceAddress + "/service",
 	}
@@ -67,6 +74,8 @@ func main() {
 		stlog.Fatalln(err)
 	}
 
+	controllers.StartHeartbeatMonitor()
+
 	r := gin.Default()
 	r.Use(CORSMiddleware())
 	r.POST("/signup", controllers.Signup)
@@ -75,5 +84,8 @@ func main() {
 	r.GET("/realitykey", middleware.RequireAuth, controllers.Realitykey)
 	r.GET("/servers", middleware.RequireAuth, controllers.Servers)
 	r.GET("/version", controllers.Version)
+	r.POST("connect", middleware.RequireAuth, controllers.Connect)
+	r.POST("/heartbeat", middleware.RequireAuth, controllers.HeartbeatFromClient)
 	r.Run()
+
 }

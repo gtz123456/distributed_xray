@@ -77,7 +77,7 @@ func RegisterService(r *Registration) error {
 
 	go func() {
 		for {
-			log.Println("Sending heartbeat to registry service at " + registryHeartbeatURL)
+			// log.Println("Sending heartbeat to registry service at " + registryHeartbeatURL)
 			err = hb.SendHeartbeat()
 			if err != nil {
 				log.Printf("Failed to send heartbeat: %v\n", err)
@@ -94,7 +94,7 @@ func RegisterService(r *Registration) error {
 				}
 			}
 			time.Sleep(interval)
-			log.Printf("Sent heartbeat to registry service at %s\n", registryHeartbeatURL)
+			// log.Printf("Sent heartbeat to registry service at %s\n", registryHeartbeatURL)
 		}
 	}()
 

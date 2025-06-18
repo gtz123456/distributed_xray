@@ -11,16 +11,11 @@
   "inbounds": [
     {
       "tag": "test",
-      "listen": "0.0.0.0",
+      "listen": "localhost",
       "port": 443,
       "protocol": "vless",
       "settings": {
-        "clients": [
-          {
-            "id": "cbcb66f7-a1e2-4b6f-a1b3-5599dd95bb9c",
-            "flow": "xtls-rprx-vision"
-          }
-        ],
+        "clients": [],
         "decryption": "none"
       },
       "streamSettings": {
@@ -58,8 +53,8 @@
         "connIdle": 300,
         "uplinkOnly": 2,
         "downlinkOnly": 5,
-        "statsUserUplink": false,
-        "statsUserDownlink": false,
+        "statsUserUplink": true,
+        "statsUserDownlink": true,
         "bufferSize": 4
       }
     },

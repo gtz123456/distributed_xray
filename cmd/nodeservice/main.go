@@ -20,7 +20,7 @@ import (
 func main() {
 	utils.LoadEnv()
 
-	host, err := utils.GetHostIP()
+	host, err := utils.GetPublicIP()
 	if err != nil {
 		stlog.Fatalln("Error getting host IP:", err)
 	}
@@ -29,19 +29,27 @@ func main() {
 		port = "80"
 	}
 
+	node.RestoreFirewall()
+
 	serviceAddress := fmt.Sprintf("http://%v:%v", host, port)
 	fmt.Println("Service address: ", serviceAddress)
 
 	publicIP, err := utils.GetPublicIP()
-
 	if err != nil {
 		stlog.Fatalln("Error getting public IP:", err)
+	}
+
+	publicIPv6, err6 := utils.GetPublicIPv6()
+	if err6 != nil {
+		stlog.Println("Error getting public IPv6:", err6)
 	}
 
 	r := registry.Registration{
 		ServiceName:      registry.NodeService,
 		ServiceURL:       serviceAddress,
 		PublicIP:         publicIP,
+		PublicIPv6:       publicIPv6,
+		Description:      os.Getenv("Node_Description"),
 		RequiredServices: []registry.ServiceName{registry.LogService, registry.WebService},
 		ServiceUpdateURL: serviceAddress + "/services",
 	}
@@ -104,6 +112,12 @@ func main() {
 	}
 
 	stlog.Println("Reality key obtained from web service: ", string(realitykey))*/
+
+	go func() {
+		for range time.Tick(10 * time.Second) {
+			node.CheckTriffic()
+		}
+	}()
 
 	REALITY_PRIKEY := os.Getenv("REALITY_PRIKEY")
 

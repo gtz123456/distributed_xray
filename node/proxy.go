@@ -6,12 +6,11 @@ import (
 	"net"
 	"strconv"
 	"sync"
-	"time"
 
 	"golang.org/x/time/rate"
 )
 
-type limit struct {
+type limit struct { // unit: bytes per second
 	Rate  int
 	Burst int
 }
@@ -19,7 +18,7 @@ type limit struct {
 var (
 	limiters     = make(map[string]*rate.Limiter)
 	mutex        sync.Mutex
-	defaultlimit = limit{Rate: 2000, Burst: 2000} // for free plan
+	defaultlimit = limit{Rate: 10 * 1024 * 1024 / 8, Burst: 4 * 1024} // for free plan
 )
 
 func Limiter(key string, limit int, burst int) *rate.Limiter {
@@ -38,68 +37,67 @@ func Limiter(key string, limit int, burst int) *rate.Limiter {
 	return limiter
 }
 
-func handleConnection(conn net.Conn, dst string) {
-	defer conn.Close()
+func limitReader(r io.Reader, lim *rate.Limiter) io.Reader {
+	pr, pw := io.Pipe()
+	go func() {
+		defer pw.Close()
+		buf := make([]byte, 4*1024) // 4KB buffer
+		for {
+			n, err := r.Read(buf)
+			if n > 0 {
+				// wait for tokens; blocking on global background context
+				if err2 := lim.WaitN(context.Background(), n); err2 != nil {
+					return
+				}
+				if _, err2 := pw.Write(buf[:n]); err2 != nil {
+					return
+				}
+			}
+			if err != nil {
+				return
+			}
+		}
+	}()
+	return pr
+}
 
+func handleConnection(conn net.Conn, dst string, upLim, downLim *rate.Limiter) {
+	defer conn.Close()
 	targetConn, err := net.Dial("tcp", dst)
 	if err != nil {
 		return
 	}
-
 	defer targetConn.Close()
 
-	limiter, ok := limiters[conn.RemoteAddr().String()]
-	if !ok {
-		limiter = Limiter(conn.LocalAddr().Network(), defaultlimit.Rate, defaultlimit.Burst)
-	}
-
-	go func() {
-		io.Copy(conn, targetConn)
-	}()
-
-	buffer := make([]byte, 2000)
-
-	for {
-		n, err := conn.Read(buffer)
-		if err != nil {
-			return
-		}
-
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-
-		err = limiter.WaitN(ctx, n)
-
-		targetConn.Write(buffer[:n])
-
-		cancel()
-
-		if err != nil {
-			return
-		}
-
-	}
-
+	// wrap and copy
+	go io.Copy(conn, limitReader(targetConn, downLim))
+	io.Copy(targetConn, limitReader(conn, upLim))
 }
 
-func Rate() limit {
-	// mock function
-	return limit{Rate: 4000, Burst: 4000}
-}
-
-func Start(port int, dest string) error {
+func NewProxy(ctx context.Context, port int) error {
 	listener, err := net.Listen("tcp", ":"+strconv.Itoa(port))
 	if err != nil {
 		return err
 	}
 
-	defer listener.Close()
+	go func() {
+		<-ctx.Done()
+		listener.Close()
+	}()
+
+	upLim := rate.NewLimiter(rate.Limit(defaultlimit.Rate), defaultlimit.Burst)
+	downLim := rate.NewLimiter(rate.Limit(defaultlimit.Rate), defaultlimit.Burst)
 
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
-			return err
+			select {
+			case <-ctx.Done():
+				return nil // graceful shutdown
+			default:
+				return err
+			}
 		}
-
-		go handleConnection(conn, dest)
+		go handleConnection(conn, "localhost:443", upLim, downLim)
 	}
 }

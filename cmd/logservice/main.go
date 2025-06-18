@@ -15,7 +15,7 @@ func main() {
 	log.Run("distributed.log")
 	utils.LoadEnv()
 
-	host, err := utils.GetHostIP()
+	host, err := utils.GetPublicIP()
 	if err != nil {
 		stlog.Fatalln("Error getting host IP:", err)
 	}

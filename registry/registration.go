@@ -10,6 +10,7 @@ type Registration struct {
 	ServiceURL       string
 	ServiceID        string
 	PublicIP         string
+	PublicIPv6       string
 	Description      string
 	RequiredServices []ServiceName
 	ServiceUpdateURL string

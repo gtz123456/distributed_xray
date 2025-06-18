@@ -1,8 +1,11 @@
 package controllers
 
 import (
+	"encoding/json"
 	"go-distributed/registry"
 	"go-distributed/web/db"
+	"io"
+	"log"
 	"net/http"
 	"os"
 	"time"
@@ -13,7 +16,30 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+const MAX_CONNECTIONS_PER_USER = 2
+const HEARTBEAT_TIMEOUT = 30 * time.Second
+const HEARTBEAT_CHECK_INTERVAL = 10 * time.Second
+
 var expireMap = make(map[string]time.Time)
+
+type Server struct {
+	IP          string   `json:"ip"`
+	IPV6        string   `json:"ipv6"`
+	ServiceID   string   `json:"serviceid"`
+	Description string   `json:"description"`
+	Tags        []string `json:"tags"`
+	// TrafficMultiplier int      `json:"traffic_multiplier"` // 0 means free, and for better servers the value will be higher
+}
+
+type UserConnection struct {
+	NodeIP        string
+	ServiceID     string
+	NodePort      string
+	ClientIP      string
+	LastHeartBeat time.Time
+}
+
+var userConnectionMap = make(map[string][]UserConnection) // user UUID: UserConnection list
 
 func Signup(c *gin.Context) {
 	// Get the email/pass off req Body
@@ -131,7 +157,7 @@ func User(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		// "UUID": userinfo.UUID,
-		"UUID": "cbcb66f7-a1e2-4b6f-a1b3-5599dd95bb9c", // for testing purpose, remove this line in production!
+		"UUID": "cbcb66f7-a1e2-4b6f-a1b3-5599dd95bb9c", // TODO:for testing purpose, remove this line in production!
 	})
 }
 
@@ -141,20 +167,14 @@ func Realitykey(c *gin.Context) {
 	})
 }
 
-type Server struct {
-	IP          string   `json:"ip"`
-	IPV6        string   `json:"ipv6"`
-	Description string   `json:"description"`
-	Tags        []string `json:"tags"`
-	// TrafficMultiplier int      `json:"traffic_multiplier"` // 0 means free, and for better servers the value will be higher
-}
-
-func GetServers() []Server {
-	// TODO: Fetch servers from registry and cache them
+func Servers(c *gin.Context) {
 	regs, err := registry.GetProviders(registry.NodeService)
 
 	if err != nil {
-		return []Server{}
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to fetch servers",
+		})
+		return
 	}
 
 	servers := []Server{}
@@ -162,19 +182,14 @@ func GetServers() []Server {
 	for _, reg := range regs {
 		server := Server{
 			IP:          reg.PublicIP,
-			IPV6:        "",
+			IPV6:        reg.PublicIPv6,
+			ServiceID:   reg.ServiceID,
 			Description: reg.Description,
 			Tags:        []string{},
 		}
 
 		servers = append(servers, server)
 	}
-	return servers
-}
-
-func Servers(c *gin.Context) {
-	//
-	servers := GetServers()
 	c.JSON(http.StatusOK, gin.H{
 		"servers": servers,
 	})
@@ -185,17 +200,16 @@ func Version(c *gin.Context) {
 	SupportedVersions := map[string]bool{
 		"0.1.0": true,
 	}
-	var body struct {
-		Version string `json:"version"`
-	}
-	if c.Bind(&body) != nil {
+
+	version := c.Query("client-version") // Get the client version from query parameter
+	if version == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Failed to read body",
+			"error": "Missing client-version parameter",
 		})
 		return
 	}
 
-	if _, ok := SupportedVersions[body.Version]; !ok {
+	if _, ok := SupportedVersions[version]; !ok {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "Unsupported version",
 		})
@@ -204,4 +218,229 @@ func Version(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{})
 
+}
+
+func Connect(c *gin.Context) {
+	clientIP := c.ClientIP()
+
+	serviceID := c.Query("serviceid")
+
+	user, ok := c.Get("user")
+
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Failed to get user ID",
+		})
+		return
+	}
+
+	userinfo := user.(db.User)
+
+	// Check if the user has a valid plan
+	if userinfo.PlanEnd.Before(time.Now()) {
+		c.JSON(http.StatusForbidden, gin.H{
+			"error": "Your plan has expired. Please renew your plan to continue using the service.",
+		})
+		return
+	}
+
+	uuid := userinfo.UUID
+	email := userinfo.Email
+
+	// get the server's api end point with the service ID
+	regs, err := registry.GetProviders(registry.NodeService)
+	if err != nil || len(regs) == 0 {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to fetch node service",
+		})
+		return
+	}
+
+	var server *registry.Registration
+	for _, reg := range regs {
+		if reg.ServiceID == serviceID {
+			server = &reg
+			break
+		}
+	}
+
+	if server == nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "Node service not found",
+		})
+		return
+	}
+
+	userConnections := userConnectionMap[uuid]
+
+	apiEndpoint := server.PublicIP + ":" + os.Getenv("Node_Port")
+
+	client := &http.Client{}
+	req, err := http.NewRequest("GET", "http://"+apiEndpoint+"/connect?uuid="+uuid+"&email="+email+"&clientip="+clientIP, nil)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to create request to node service",
+		})
+		return
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to connect to node service: " + err.Error(),
+		})
+		return
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		c.JSON(resp.StatusCode, gin.H{
+			"error": "Failed to connect to node service, status code: " + resp.Status,
+		})
+		return
+	}
+
+	// get the port from the response
+	var responseBody struct {
+		Port string `json:"port"`
+	}
+
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to read response from node service: " + err.Error(),
+		})
+		return
+	}
+
+	if err := json.Unmarshal(bodyBytes, &responseBody); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to read response from node service" + err.Error(),
+		})
+		return
+	}
+	// Respond with the node port and pubkey
+
+	if len(userConnections) >= MAX_CONNECTIONS_PER_USER {
+		userConnectionMap[uuid] = userConnectionMap[uuid][1:]
+	}
+
+	userConnectionMap[uuid] = append(userConnectionMap[uuid], UserConnection{
+		NodeIP:        server.PublicIP,
+		ServiceID:     serviceID,
+		NodePort:      responseBody.Port,
+		ClientIP:      clientIP,
+		LastHeartBeat: time.Now(),
+	})
+
+	c.JSON(http.StatusOK, gin.H{
+		"port":   responseBody.Port,
+		"uuid":   uuid,
+		"pubkey": os.Getenv("REALITY_PUBKEY"), // TODO
+	})
+}
+
+func HeartbeatFromClient(c *gin.Context) {
+	// receive heartbeat from client and keep user connected to the node service
+	serviceID := c.Query("serviceid")
+
+	user, ok := c.Get("user")
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Failed to get user ID",
+		})
+		return
+	}
+
+	userInfo, ok := user.(db.User)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to get user info",
+		})
+		return
+	}
+
+	userID := userInfo.UUID
+
+	if serviceID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Missing serviceid or userid",
+		})
+		return
+	}
+
+	_, ok = userConnectionMap[userID]
+
+	if !ok {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "User not connected to any node service",
+		})
+		return
+	}
+
+	found := false
+
+	for idx, conn := range userConnectionMap[userID] {
+		if conn.ServiceID == serviceID {
+			userConnectionMap[userID][idx].LastHeartBeat = time.Now() // Update the last heartbeat time
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "User not connected to the specified node service",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{})
+}
+
+func StartHeartbeatMonitor() {
+	go func() {
+		log.Println("Starting heartbeat monitor...")
+		for {
+			time.Sleep(HEARTBEAT_CHECK_INTERVAL)
+
+			now := time.Now()
+			for user_uuid, connections := range userConnectionMap { // TODO: add lock?
+				// Filter out connections that have not sent a heartbeat in the last heartbeatTimeout
+				validConnections := []UserConnection{}
+				for _, conn := range connections {
+					if now.Sub(conn.LastHeartBeat) <= HEARTBEAT_TIMEOUT {
+						// log.Println("Valid connection found for user:", user_uuid, "Node IP:", conn.NodeIP, "Last Heartbeat:", conn.LastHeartBeat)
+						validConnections = append(validConnections, conn)
+					} else {
+						// send a disconnect request to the node service
+						// log.Println("Disconnecting user:", user_uuid, "from node IP:", conn.NodeIP, "due to heartbeat timeout")
+						client := &http.Client{}
+						req, err := http.NewRequest("GET", "http://"+conn.NodeIP+":"+os.Getenv("Node_Port")+"/disconnect?uuid="+user_uuid, nil)
+						if err != nil {
+							log.Println("Error creating disconnect request:", err)
+							continue
+						}
+						resp, err := client.Do(req)
+						if err != nil {
+							log.Println("Error sending disconnect request:", err)
+							continue
+						}
+						if resp.StatusCode != http.StatusOK {
+							log.Println("Failed to disconnect user:", user_uuid, "from node IP:", conn.NodeIP, "status code:", resp.Status)
+							resp.Body.Close()
+							continue
+						}
+						resp.Body.Close()
+					}
+				}
+
+				userConnectionMap[user_uuid] = validConnections
+
+				// If no valid connections left, remove the user from the map
+				if len(validConnections) == 0 {
+					delete(userConnectionMap, user_uuid)
+				}
+			}
+		}
+	}()
 }
