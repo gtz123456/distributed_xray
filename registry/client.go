@@ -86,6 +86,7 @@ func RegisterService(r *Registration) error {
 				if err.Error() == "Service not authorized" {
 					time.Sleep(interval)
 					log.Println("Re-registering service...")
+					Prov.services = make(map[ServiceName][]Registration) // clear all cached providers
 					err = RegisterRequest(r)
 					if err != nil {
 						log.Printf("Failed to re-register service: %v\n", err)
