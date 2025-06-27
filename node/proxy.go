@@ -18,7 +18,7 @@ type limit struct { // unit: bytes per second
 var (
 	limiters     = make(map[string]*rate.Limiter)
 	mutex        sync.Mutex
-	defaultlimit = limit{Rate: 10 * 1024 * 1024 / 8, Burst: 4 * 1024} // for free plan
+	defaultlimit = limit{Rate: 10 * 1000 * 1000 / 8, Burst: 4 * 1024} // for free plan
 )
 
 func Limiter(key string, limit int, burst int) *rate.Limiter {
