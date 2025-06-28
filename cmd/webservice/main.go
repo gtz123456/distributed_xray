@@ -11,7 +11,9 @@ import (
 	"go-distributed/web/db"
 	"go-distributed/web/middleware"
 	stlog "log"
+	"math/rand"
 	"os"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -65,7 +67,7 @@ func main() {
 		ServiceName:      registry.WebService,
 		ServiceURL:       fmt.Sprintf("http://%v:%v", host, GINPORT),
 		PublicIP:         publicIP,
-		RequiredServices: []registry.ServiceName{registry.NodeService, registry.WebService},
+		RequiredServices: []registry.ServiceName{registry.NodeService, registry.LogService},
 		ServiceUpdateURL: serviceAddress + "/service",
 	}
 
@@ -73,6 +75,23 @@ func main() {
 	if err != nil {
 		stlog.Fatalln(err)
 	}
+
+	var logProviders []registry.Registration
+
+	for {
+		logProviders, err = registry.GetProviders(registry.LogService)
+
+		if err != nil {
+			stlog.Println("Error getting log service:" + err.Error() + ". Retrying in 3 seconds")
+			time.Sleep(3 * time.Second)
+		} else {
+			break
+		}
+	}
+
+	fmt.Printf("Logging service found at %s\n", logProviders)
+	logProvider := logProviders[rand.Intn(len(logProviders))]
+	log.SetClientLogger(logProvider.ServiceURL, reg.ServiceName)
 
 	controllers.StartHeartbeatMonitor()
 
