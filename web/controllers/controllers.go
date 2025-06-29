@@ -416,6 +416,16 @@ func StartHeartbeatMonitor() {
 		for {
 			time.Sleep(HEARTBEAT_CHECK_INTERVAL)
 
+			// remove disconnected nodes from userConnectionMap
+			regs, err := registry.GetProviders(registry.NodeService)
+
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"error": "Failed to fetch servers",
+				})
+				return
+			}
+
 			usersToProcess := make(map[string][]UserConnection)
 
 			// make a snapshot of the current state

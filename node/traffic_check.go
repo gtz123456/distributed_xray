@@ -110,7 +110,7 @@ func CheckTriffic() {
 		log.Fatal(err)
 	}
 	startTraffic := readFileInt(usageFile)
-	if startTraffic == -1 {
+	if startTraffic == -1 || curTraffic < int64(startTraffic) {
 		writeFileInt(usageFile, int(curTraffic))
 		writeFileInt(monthFile, curMonth)
 		log.Println("[*] Initial traffic usage recorded.")
