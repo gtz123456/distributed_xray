@@ -81,7 +81,8 @@ func Signup(c *gin.Context) {
 
 		Renew: 31 * 24 * time.Hour, // 31 days
 
-		TrafficUsed: 0,
+		TrafficUsed:  0,
+		TrafficLimit: 50, // 50 GB for free plan
 	}
 
 	result := db.DB.Create(&user)
@@ -163,13 +164,14 @@ func User(c *gin.Context) {
 	userinfo := user.(db.User)
 
 	c.JSON(http.StatusOK, gin.H{
-		"email":        userinfo.Email,
-		"uuid":         userinfo.UUID,
-		"plan":         userinfo.Plan,
-		"plan_start":   userinfo.PlanStart.Format(time.RFC3339),
-		"plan_end":     userinfo.PlanEnd.Format(time.RFC3339),
-		"renew":        userinfo.Renew.Seconds(),
-		"traffic_used": userinfo.TrafficUsed,
+		"email":         userinfo.Email,
+		"uuid":          userinfo.UUID,
+		"plan":          userinfo.Plan,
+		"plan_start":    userinfo.PlanStart.Format(time.RFC3339),
+		"plan_end":      userinfo.PlanEnd.Format(time.RFC3339),
+		"renew":         userinfo.Renew.Seconds(),
+		"traffic_used":  userinfo.TrafficUsed,
+		"traffic_limit": userinfo.TrafficLimit,
 	})
 }
 
