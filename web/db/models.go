@@ -18,5 +18,6 @@ type User struct {
 
 	Renew time.Duration
 
-	TrafficUsed int
+	TrafficLimit int // in GB, -1 means unlimited
+	TrafficUsed  int
 }

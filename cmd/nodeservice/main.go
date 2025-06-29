@@ -73,8 +73,6 @@ func main() {
 	}
 
 	fmt.Printf("Logging service found at %s\n", logProviders)
-	// select a logger provider randomly
-	// TODO: Select logger based on lattency??
 	logProvider := logProviders[rand.Intn(len(logProviders))]
 	log.SetClientLogger(logProvider.ServiceURL, r.ServiceName)
 

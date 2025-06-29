@@ -75,8 +75,13 @@ func Signup(c *gin.Context) {
 		Email:     body.Email,
 		Password:  string(hash),
 		UUID:      UUID,
+		Plan:      "Free plan",
 		PlanStart: time.Now(),
-		PlanEnd:   time.Now().Add(30 * 24 * time.Hour),
+		PlanEnd:   time.Now().Add(100 * 365 * 24 * time.Hour),
+
+		Renew: 31 * 24 * time.Hour, // 31 days
+
+		TrafficUsed: 0,
 	}
 
 	result := db.DB.Create(&user)
@@ -153,13 +158,18 @@ func Login(c *gin.Context) {
 }
 
 func User(c *gin.Context) {
-	// user, _ := c.Get("user")
+	user, _ := c.Get("user")
 
-	// userinfo := user.(db.User)
+	userinfo := user.(db.User)
 
 	c.JSON(http.StatusOK, gin.H{
-		// "UUID": userinfo.UUID,
-		"UUID": "cbcb66f7-a1e2-4b6f-a1b3-5599dd95bb9c", // TODO:for testing purpose, remove this line in production!
+		"email":        userinfo.Email,
+		"uuid":         userinfo.UUID,
+		"plan":         userinfo.Plan,
+		"plan_start":   userinfo.PlanStart.Format(time.RFC3339),
+		"plan_end":     userinfo.PlanEnd.Format(time.RFC3339),
+		"renew":        userinfo.Renew.Seconds(),
+		"traffic_used": userinfo.TrafficUsed,
 	})
 }
 
@@ -420,11 +430,34 @@ func StartHeartbeatMonitor() {
 			regs, err := registry.GetProviders(registry.NodeService)
 
 			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{
-					"error": "Failed to fetch servers",
-				})
-				return
+				log.Printf("Error fetching node services: %v", err)
 			}
+
+			userConnectionMapMutex.Lock()
+			for userUUID, connections := range userConnectionMap {
+				validConnections := make([]UserConnection, 0)
+				for _, conn := range connections {
+					found := false
+					for _, reg := range regs {
+						if conn.ServiceID == reg.ServiceID && conn.NodeIP == reg.PublicIP {
+							found = true
+							break
+						}
+					}
+					if found {
+						validConnections = append(validConnections, conn)
+					} else {
+						log.Printf("Removing connection for user %s to node %s as it is no longer available.", userUUID, conn.NodeIP)
+					}
+				}
+				if len(validConnections) == 0 {
+					delete(userConnectionMap, userUUID)
+					log.Printf("Removed user %s from connection map as they have no valid connections left.", userUUID)
+				} else {
+					userConnectionMap[userUUID] = validConnections
+				}
+			}
+			userConnectionMapMutex.Unlock()
 
 			usersToProcess := make(map[string][]UserConnection)
 
