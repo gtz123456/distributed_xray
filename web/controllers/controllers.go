@@ -5,7 +5,6 @@ import (
 	"go-distributed/registry"
 	"go-distributed/web/db"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"sync"
@@ -79,7 +78,8 @@ func Signup(c *gin.Context) {
 		PlanStart: time.Now(),
 		PlanEnd:   time.Now().Add(100 * 365 * 24 * time.Hour),
 
-		Renew: 31 * 24 * time.Hour, // 31 days
+		RenewCycle: 31 * 24 * time.Hour, // renew every 31 days
+		NextRenew:  time.Now().Add(31 * 24 * time.Hour),
 
 		TrafficUsed:  0,
 		TrafficLimit: 50, // 50 GB for free plan
@@ -169,7 +169,8 @@ func User(c *gin.Context) {
 		"plan":          userinfo.Plan,
 		"plan_start":    userinfo.PlanStart.Format(time.RFC3339),
 		"plan_end":      userinfo.PlanEnd.Format(time.RFC3339),
-		"renew":         userinfo.Renew.Seconds(),
+		"renew_cycle":   userinfo.RenewCycle.String(),
+		"next_renew":    userinfo.NextRenew.Format(time.RFC3339),
 		"traffic_used":  userinfo.TrafficUsed,
 		"traffic_limit": userinfo.TrafficLimit,
 	})
@@ -330,6 +331,16 @@ func Connect(c *gin.Context) {
 		})
 		return
 	}
+
+	// set the user as active
+	userinfo.Active = true
+	if err := db.DB.Model(&userinfo).Update("active", true).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to update user active status: " + err.Error(),
+		})
+		return
+	}
+
 	// Respond with the node port and pubkey
 	userConnectionMapMutex.Lock()
 	defer userConnectionMapMutex.Unlock()
@@ -414,120 +425,4 @@ func HeartbeatFromClient(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{})
-}
-
-func StartHeartbeatMonitor() {
-	go func() {
-		log.Println("Starting heartbeat monitor...")
-
-		// reuse the http client for disconnect requests
-		httpClient := &http.Client{
-			Timeout: 10 * time.Second,
-		}
-
-		for {
-			time.Sleep(HEARTBEAT_CHECK_INTERVAL)
-
-			// remove disconnected nodes from userConnectionMap
-			regs, err := registry.GetProviders(registry.NodeService)
-
-			if err != nil {
-				log.Printf("Error fetching node services: %v", err)
-			}
-
-			userConnectionMapMutex.Lock()
-			for userUUID, connections := range userConnectionMap {
-				validConnections := make([]UserConnection, 0)
-				for _, conn := range connections {
-					found := false
-					for _, reg := range regs {
-						if conn.ServiceID == reg.ServiceID && conn.NodeIP == reg.PublicIP {
-							found = true
-							break
-						}
-					}
-					if found {
-						validConnections = append(validConnections, conn)
-					} else {
-						log.Printf("Removing connection for user %s to node %s as it is no longer available.", userUUID, conn.NodeIP)
-					}
-				}
-				if len(validConnections) == 0 {
-					delete(userConnectionMap, userUUID)
-					log.Printf("Removed user %s from connection map as they have no valid connections left.", userUUID)
-				} else {
-					userConnectionMap[userUUID] = validConnections
-				}
-			}
-			userConnectionMapMutex.Unlock()
-
-			usersToProcess := make(map[string][]UserConnection)
-
-			// make a snapshot of the current state
-			userConnectionMapMutex.RLock()
-			for userUUID, connections := range userConnectionMap {
-				copiedConnections := make([]UserConnection, len(connections))
-				copy(copiedConnections, connections)
-				usersToProcess[userUUID] = copiedConnections
-			}
-			userConnectionMapMutex.RUnlock()
-
-			for userUUID, connections := range usersToProcess {
-				var validConnections []UserConnection
-				var timedOutConnections []UserConnection
-				now := time.Now()
-
-				for _, conn := range connections {
-					if now.Sub(conn.LastHeartBeat) <= HEARTBEAT_TIMEOUT {
-						validConnections = append(validConnections, conn)
-					} else {
-						timedOutConnections = append(timedOutConnections, conn)
-					}
-				}
-
-				if len(timedOutConnections) > 0 {
-					var wg sync.WaitGroup
-					log.Printf("User %s has %d timed out connections to clean up.", userUUID, len(timedOutConnections))
-
-					// Disconnect the timed out connections
-					for _, conn := range timedOutConnections {
-						wg.Add(1)
-						go func(c UserConnection) {
-							defer wg.Done()
-							disconnectURL := "http://" + c.NodeIP + ":" + os.Getenv("Node_Port") + "/disconnect?uuid=" + userUUID
-							req, err := http.NewRequest("GET", disconnectURL, nil)
-							if err != nil {
-								log.Printf("Error creating disconnect request for user %s, node %s: %v", userUUID, c.NodeIP, err)
-								return
-							}
-
-							resp, err := httpClient.Do(req)
-							if err != nil {
-								log.Printf("Error sending disconnect request for user %s, node %s: %v", userUUID, c.NodeIP, err)
-								return
-							}
-							defer resp.Body.Close()
-
-							if resp.StatusCode != http.StatusOK {
-								log.Printf("Failed to disconnect user %s from node %s, status code: %s", userUUID, c.NodeIP, resp.Status)
-							} else {
-								log.Printf("Successfully disconnected user %s from node %s.", userUUID, c.NodeIP)
-							}
-						}(conn)
-					}
-					wg.Wait()
-				}
-
-				// Update the userConnectionMap with valid connections
-				userConnectionMapMutex.Lock()
-				if len(validConnections) == 0 {
-					delete(userConnectionMap, userUUID)
-					log.Printf("Removed user %s from connection map as they have no valid connections left.", userUUID)
-				} else {
-					userConnectionMap[userUUID] = validConnections
-				}
-				userConnectionMapMutex.Unlock()
-			}
-		}
-	}()
 }

@@ -16,8 +16,11 @@ type User struct {
 	PlanStart time.Time
 	PlanEnd   time.Time
 
-	Renew time.Duration
+	RenewCycle time.Duration // renew every X days
+	NextRenew  time.Time
 
 	TrafficUsed  int
 	TrafficLimit int // in GB, -1 means unlimited
+
+	Active bool // if the user has an active connection
 }
