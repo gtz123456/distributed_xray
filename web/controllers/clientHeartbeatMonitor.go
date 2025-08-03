@@ -1,6 +1,9 @@
 package controllers
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
 	"go-distributed/registry"
 	"go-distributed/web/db"
 	"log"
@@ -10,14 +13,37 @@ import (
 	"time"
 )
 
+func sendDisconnectRequest(apiURL string, uuids []string) error {
+	jsonData, err := json.Marshal(uuids)
+	if err != nil {
+		return fmt.Errorf("failed to marshal uuids to json: %w", err)
+	}
+
+	req, err := http.NewRequest("POST", apiURL, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("received non-200 response status: %s", resp.Status)
+	}
+
+	fmt.Printf("Successfully sent disconnect request for %d UUIDs\n", len(uuids))
+	return nil
+}
+
 func StartHeartbeatMonitor() {
 	go func() {
 		log.Println("Starting heartbeat monitor...")
-
-		// reuse the http client for disconnect requests
-		httpClient := &http.Client{
-			Timeout: 10 * time.Second,
-		}
 
 		for {
 			time.Sleep(HEARTBEAT_CHECK_INTERVAL)
@@ -66,50 +92,20 @@ func StartHeartbeatMonitor() {
 			}
 			userConnectionMapMutex.RUnlock()
 
+			// Map to collect timed out connections per disconnect URL
+			timedOutMap := make(map[string][]string)
+			now := time.Now()
+
 			for userUUID, connections := range usersToProcess {
 				var validConnections []UserConnection
-				var timedOutConnections []UserConnection
-				now := time.Now()
 
 				for _, conn := range connections {
 					if now.Sub(conn.LastHeartBeat) <= HEARTBEAT_TIMEOUT {
 						validConnections = append(validConnections, conn)
 					} else {
-						timedOutConnections = append(timedOutConnections, conn)
+						disconnectURL := "http://" + conn.NodeIP + ":" + os.Getenv("Node_Port") + "/disconnect"
+						timedOutMap[disconnectURL] = append(timedOutMap[disconnectURL], userUUID)
 					}
-				}
-
-				if len(timedOutConnections) > 0 {
-					var wg sync.WaitGroup
-					log.Printf("User %s has %d timed out connections to clean up.", userUUID, len(timedOutConnections))
-
-					// Disconnect the timed out connections
-					for _, conn := range timedOutConnections {
-						wg.Add(1)
-						go func(c UserConnection) {
-							defer wg.Done()
-							disconnectURL := "http://" + c.NodeIP + ":" + os.Getenv("Node_Port") + "/disconnect?uuid=" + userUUID
-							req, err := http.NewRequest("GET", disconnectURL, nil)
-							if err != nil {
-								log.Printf("Error creating disconnect request for user %s, node %s: %v", userUUID, c.NodeIP, err)
-								return
-							}
-
-							resp, err := httpClient.Do(req)
-							if err != nil {
-								log.Printf("Error sending disconnect request for user %s, node %s: %v", userUUID, c.NodeIP, err)
-								return
-							}
-							defer resp.Body.Close()
-
-							if resp.StatusCode != http.StatusOK {
-								log.Printf("Failed to disconnect user %s from node %s, status code: %s", userUUID, c.NodeIP, resp.Status)
-							} else {
-								log.Printf("Successfully disconnected user %s from node %s.", userUUID, c.NodeIP)
-							}
-						}(conn)
-					}
-					wg.Wait()
 				}
 
 				// Update the userConnectionMap with valid connections
@@ -127,6 +123,21 @@ func StartHeartbeatMonitor() {
 				}
 				userConnectionMapMutex.Unlock()
 			}
+
+			// Batch disconnect requests per URL
+			var wg sync.WaitGroup
+			for url, uuids := range timedOutMap {
+				wg.Add(1)
+				go func(disconnectURL string, uuids []string) {
+					defer wg.Done()
+					if err := sendDisconnectRequest(disconnectURL, uuids); err != nil {
+						log.Printf("Error sending batch disconnect request to %s: %v", disconnectURL, err)
+					} else {
+						log.Printf("Successfully sent batch disconnect request to %s for %d users.", disconnectURL, len(uuids))
+					}
+				}(url, uuids)
+			}
+			wg.Wait()
 		}
 	}()
 }

@@ -20,7 +20,7 @@ type User struct {
 	NextRenew  time.Time
 
 	TrafficUsed  int
-	TrafficLimit int // in GB, -1 means unlimited
+	TrafficLimit int // in MB, -1 means unlimited
 
 	Active bool // if the user has an active connection
 }

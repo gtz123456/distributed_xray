@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strconv"
 	"sync"
 	"time"
 
@@ -21,6 +22,11 @@ const HEARTBEAT_TIMEOUT = 30 * time.Second
 const HEARTBEAT_CHECK_INTERVAL = 10 * time.Second
 
 var expireMap = make(map[string]time.Time)
+
+var RateMap = map[string]int{
+	"Free plan":    10 * 1000 * 1000 / 8,  // 10 Mbps
+	"Premium plan": 200 * 1000 * 1000 / 8, // 200 Mbps
+}
 
 type Server struct {
 	IP          string   `json:"ip"`
@@ -70,7 +76,7 @@ func Signup(c *gin.Context) {
 	// Create the user
 	UUID := uuid.New().String()
 
-	user := db.User{
+	/* user := db.User{
 		Email:     body.Email,
 		Password:  string(hash),
 		UUID:      UUID,
@@ -82,7 +88,23 @@ func Signup(c *gin.Context) {
 		NextRenew:  time.Now().Add(31 * 24 * time.Hour),
 
 		TrafficUsed:  0,
-		TrafficLimit: 50, // 50 GB for free plan
+		TrafficLimit: 50 * 1000, // 50 GB for free plan
+	} */
+
+	// free 30 days Premium Plan trial for new users
+	user := db.User{
+		Email:     body.Email,
+		Password:  string(hash),
+		UUID:      UUID,
+		Plan:      "Premium plan",
+		PlanStart: time.Now(),
+		PlanEnd:   time.Now().Add(100 * 12 * 31 * 24 * time.Hour),
+
+		RenewCycle: 31 * 24 * time.Hour, // renew every 31 days
+		NextRenew:  time.Now().Add(31 * 24 * time.Hour),
+
+		TrafficUsed:  0,
+		TrafficLimit: 50 * 1000, // 50 GB for free trail
 	}
 
 	result := db.DB.Create(&user)
@@ -286,10 +308,23 @@ func Connect(c *gin.Context) {
 		return
 	}
 
+	plan := userinfo.Plan
+	if plan == "" {
+		plan = "Free plan" // Default to free plan if not set
+	}
+
+	rate := RateMap[plan]
+	if rate == 0 {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Invalid plan or rate limit not set for the plan",
+		})
+		return
+	}
+
 	apiEndpoint := server.PublicIP + ":" + os.Getenv("Node_Port")
 
 	client := &http.Client{}
-	req, err := http.NewRequest("GET", "http://"+apiEndpoint+"/connect?uuid="+uuid+"&email="+email+"&clientip="+clientIP, nil)
+	req, err := http.NewRequest("GET", "http://"+apiEndpoint+"/connect?uuid="+uuid+"&email="+email+"&clientip="+clientIP+"&rate="+strconv.Itoa(rate), nil)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "Failed to create request to node service",

@@ -63,3 +63,8 @@ docker run -itd --name nodeservice -e "Registry_IP=172.17.0.2" -p 443:443 nodese
 
 docker run --rm -e "DB=root:password@tcp(146.235.210.34:3306)/vpn?charset=utf8mb4&parseTime=True&loc=Local" -e "Registry_IP=172.17.0.2" -e "REALITY_PUBKEY=pus2DL_XaiCBK05ddIynVtkYb75EjBm0vyCoZsUi2yw" -e "REALITY_PRIKEY=mNoGzlLbIVdKM0ZJY4sVZ8IOnFhwhdpcIYWBDQ_xQiw" -p 80:8080 webservice
 
+sudo nohup  ./nodeservice &
+nohup ./logservice &
+nohup ./regservice &
+nohup ./webservice &
+

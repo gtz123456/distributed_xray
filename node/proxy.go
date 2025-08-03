@@ -5,7 +5,6 @@ import (
 	"io"
 	"net"
 	"strconv"
-	"sync"
 
 	"golang.org/x/time/rate"
 )
@@ -15,27 +14,7 @@ type limit struct { // unit: bytes per second
 	Burst int
 }
 
-var (
-	limiters     = make(map[string]*rate.Limiter)
-	mutex        sync.Mutex
-	defaultlimit = limit{Rate: 10 * 1000 * 1000 / 8, Burst: 4 * 1024} // for free plan
-)
-
-func Limiter(key string, limit int, burst int) *rate.Limiter {
-	mutex.Lock()
-	defer mutex.Unlock()
-
-	limiter, ok := limiters[key]
-	if !ok {
-		limiter = rate.NewLimiter(rate.Limit(limit), burst)
-		limiters[key] = limiter
-	} else {
-		limiter.SetLimit(rate.Limit(limit))
-		limiter.SetBurst(burst)
-	}
-
-	return limiter
-}
+var defaultlimit = limit{Rate: 10 * 1000 * 1000 / 8, Burst: 16 * 1024} // for free plan
 
 func limitReader(r io.Reader, lim *rate.Limiter) io.Reader {
 	pr, pw := io.Pipe()
@@ -74,7 +53,7 @@ func handleConnection(conn net.Conn, dst string, upLim, downLim *rate.Limiter) {
 	io.Copy(targetConn, limitReader(conn, upLim))
 }
 
-func NewProxy(ctx context.Context, port int) error {
+func NewProxy(ctx context.Context, port int, sourceIP string, rateLimit int, burst int) error {
 	listener, err := net.Listen("tcp", ":"+strconv.Itoa(port))
 	if err != nil {
 		return err
@@ -85,8 +64,8 @@ func NewProxy(ctx context.Context, port int) error {
 		listener.Close()
 	}()
 
-	upLim := rate.NewLimiter(rate.Limit(defaultlimit.Rate), defaultlimit.Burst)
-	downLim := rate.NewLimiter(rate.Limit(defaultlimit.Rate), defaultlimit.Burst)
+	upLim := rate.NewLimiter(rate.Limit(rateLimit), burst)
+	downLim := rate.NewLimiter(rate.Limit(rateLimit), burst)
 
 	for {
 		conn, err := listener.Accept()
@@ -97,6 +76,11 @@ func NewProxy(ctx context.Context, port int) error {
 			default:
 				return err
 			}
+		}
+		remoteAddr, _, err := net.SplitHostPort(conn.RemoteAddr().String())
+		if err != nil || remoteAddr != sourceIP {
+			conn.Close()
+			continue
 		}
 		go handleConnection(conn, "localhost:443", upLim, downLim)
 	}

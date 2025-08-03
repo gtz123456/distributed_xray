@@ -10,37 +10,6 @@ import (
 	"golang.org/x/time/rate"
 )
 
-// 测试限速器的创建和更新
-func TestLimiter(t *testing.T) {
-	key := "test_key"
-	rateLimit := 5000
-	burstLimit := 5000
-
-	// 第一次创建限速器
-	limiter := Limiter(key, rateLimit, burstLimit)
-
-	if limiter.Limit() != rate.Limit(rateLimit) {
-		t.Errorf("预期限速: %v, 实际限速: %v", rateLimit, limiter.Limit())
-	}
-
-	if limiter.Burst() != burstLimit {
-		t.Errorf("预期突发: %v, 实际突发: %v", burstLimit, limiter.Burst())
-	}
-
-	// 更新限速器
-	newRateLimit := 10000
-	newBurstLimit := 10000
-	limiter = Limiter(key, newRateLimit, newBurstLimit)
-
-	if limiter.Limit() != rate.Limit(newRateLimit) {
-		t.Errorf("更新后预期限速: %v, 实际限速: %v", newRateLimit, limiter.Limit())
-	}
-
-	if limiter.Burst() != newBurstLimit {
-		t.Errorf("更新后预期突发: %v, 实际突发: %v", newBurstLimit, limiter.Burst())
-	}
-}
-
 // 测试连接处理函数 handleConnection，验证是否限速成功
 func TestDefaultHandleConnection(t *testing.T) {
 	clientConn, serverConn := net.Pipe()
@@ -106,7 +75,7 @@ func TestDefaultHandleConnection(t *testing.T) {
 // 测试端口监听和连接接受
 func TestStart(t *testing.T) {
 	go func() {
-		err := NewProxy(context.Background(), 8080)
+		err := NewProxy(context.Background(), 8080, "127.0.0.1", defaultlimit.Rate, defaultlimit.Burst)
 		if err != nil {
 			t.Errorf("监听时出错: %v", err)
 		}
