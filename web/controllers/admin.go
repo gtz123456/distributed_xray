@@ -37,13 +37,13 @@ func SetPlan(c *gin.Context) {
 	if plan == "Free plan" {
 		user.Plan = "Free plan"
 		user.TrafficUsed = 0
-		user.TrafficLimit = 50 * 1000 // 50 GB
+		user.TrafficLimit = 50 * 1000 * 1000 * 1000 // 50 GB
 		user.NextRenew = time.Now().Add(31 * 24 * time.Hour)
 		user.PlanEnd = time.Now().Add(100 * 12 * 31 * 24 * time.Hour) // Set PlanEnd to a far future date
 	} else if plan == "Premium plan" {
 		user.Plan = "Premium plan"
 		user.TrafficUsed = 0
-		user.TrafficLimit = 200 * 1000 // 200 GB
+		user.TrafficLimit = 200 * 1000 * 1000 * 1000 // 200 GB
 		user.NextRenew = time.Now().Add(31 * 24 * time.Hour)
 		// user.PlanEnd = time.Now().Add(31 * 24 * time.Hour)
 	} else {

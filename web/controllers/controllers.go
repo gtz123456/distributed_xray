@@ -104,7 +104,7 @@ func Signup(c *gin.Context) {
 		NextRenew:  time.Now().Add(31 * 24 * time.Hour),
 
 		TrafficUsed:  0,
-		TrafficLimit: 50 * 1000, // 50 GB for free trail
+		TrafficLimit: 50 * 1000 * 1000 * 1000, // 50 GB for free trail
 	}
 
 	result := db.DB.Create(&user)
