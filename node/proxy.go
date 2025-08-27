@@ -6,7 +6,6 @@ import (
 	"net"
 	"strconv"
 	"sync"
-	"sync/atomic"
 
 	"golang.org/x/time/rate"
 )
@@ -19,28 +18,15 @@ type limit struct { // unit: bytes per second
 var defaultlimit = limit{Rate: 10 * 1000 * 1000 / 8, Burst: 16 * 1024} // for free plan
 
 type ConnStats struct {
-	Uploaded   int64
-	Downloaded int64
+	Uploaded   int
+	Downloaded int
 }
 
 type StatsStore struct {
-	sync.Map // key: port(int), value: *ConnStats
+	sync.Map
 }
 
-type countingWriter struct {
-	w     io.Writer
-	count *int64
-}
-
-func (c *countingWriter) Write(p []byte) (int, error) {
-	n, err := c.w.Write(p)
-	if n > 0 {
-		atomic.AddInt64(c.count, int64(n))
-	}
-	return n, err
-}
-
-func limitReader(r io.Reader, lim *rate.Limiter) io.Reader {
+func limitReader(r io.Reader, lim *rate.Limiter, cnt *int) io.Reader {
 	pr, pw := io.Pipe()
 	go func() {
 		defer pw.Close()
@@ -55,6 +41,7 @@ func limitReader(r io.Reader, lim *rate.Limiter) io.Reader {
 				if _, err2 := pw.Write(buf[:n]); err2 != nil {
 					return
 				}
+				*cnt += n
 			}
 			if err != nil {
 				return
@@ -78,15 +65,9 @@ func handleConnection(conn net.Conn, dst string, upLim, downLim *rate.Limiter, s
 	val, _ := statsStore.LoadOrStore(port, &ConnStats{})
 	stats := val.(*ConnStats)
 
-	go io.Copy(
-		&countingWriter{w: conn, count: &stats.Downloaded},
-		limitReader(targetConn, downLim),
-	)
+	go io.Copy(conn, limitReader(targetConn, downLim, &stats.Downloaded))
 
-	io.Copy(
-		&countingWriter{w: targetConn, count: &stats.Uploaded},
-		limitReader(conn, upLim),
-	)
+	io.Copy(targetConn, limitReader(conn, upLim, &stats.Uploaded))
 }
 
 func NewProxy(ctx context.Context, port int, sourceIP string, rateLimit int, burst int, statsStore *StatsStore) error {
