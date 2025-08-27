@@ -303,6 +303,8 @@ func StartTrafficReport() {
 
 			report := make([]map[string]interface{}, 0, len(connectionsSnapshot))
 
+			log.Printf("Connections: %v %v", connectionsSnapshot, statsStore)
+
 			for uuid, port := range connectionsSnapshot {
 				val, ok := statsStore.Load(port)
 				if !ok {
@@ -343,11 +345,11 @@ func StartTrafficReport() {
 					continue
 				}
 
-				webPort := os.Getenv("Web_Port")
+				GIN_Port := os.Getenv("PORT")
 				provider := providers[0] // TODO
 
 				go func(provider registry.Registration) {
-					url := fmt.Sprintf("http://%s:%s/traffic", provider.PublicIP, webPort)
+					url := fmt.Sprintf("http://%s:%s/traffic", provider.PublicIP, GIN_Port)
 					req, err := http.NewRequest("POST", url, bytes.NewBuffer(data))
 					if err != nil {
 						log.Println("Create request error:", err)
