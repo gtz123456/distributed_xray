@@ -59,7 +59,7 @@ func handleConnection(conn net.Conn, dst string, upLim, downLim *rate.Limiter, s
 	}
 	defer targetConn.Close()
 
-	_, portStr, _ := net.SplitHostPort(conn.RemoteAddr().String())
+	_, portStr, _ := net.SplitHostPort(conn.LocalAddr().String())
 	port, _ := strconv.Atoi(portStr)
 
 	val, _ := statsStore.LoadOrStore(port, &ConnStats{})
