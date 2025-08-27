@@ -117,6 +117,8 @@ func main() {
 		}
 	}()
 
+	node.StartTrafficReport()
+
 	REALITY_PRIKEY := os.Getenv("REALITY_PRIKEY")
 
 	utils.ConfigXray(string(REALITY_PRIKEY))
