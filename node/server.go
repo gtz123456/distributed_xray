@@ -206,7 +206,7 @@ func (sh *nodeHandler) handleConnect(w http.ResponseWriter, r *http.Request) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	rateLimitInt := 0
+	rateLimitInt := defaultlimit.Rate
 	if rateLimit != "" {
 		var err error
 		rateLimitInt, err = strconv.Atoi(rateLimit)
@@ -215,7 +215,7 @@ func (sh *nodeHandler) handleConnect(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	burstInt := 0
+	burstInt := defaultlimit.Burst
 	if burst != "" {
 		var err error
 		burstInt, err = strconv.Atoi(burst)

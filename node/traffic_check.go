@@ -49,16 +49,16 @@ func getCurrentTrafficBytes() (int64, error) {
 	return total, nil
 }
 
-func readFileInt(path string) int {
+func readFileInt(path string) int64 {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return -1
 	}
-	val, _ := strconv.Atoi(strings.TrimSpace(string(data)))
+	val, _ := strconv.ParseInt(strings.TrimSpace(string(data)), 10, 64)
 	return val
 }
 
-func writeFileInt(path string, val int) {
+func writeFileInt(path string, val int64) {
 	_ = os.WriteFile(path, []byte(fmt.Sprintf("%d", val)), 0644)
 }
 
@@ -96,11 +96,11 @@ func CheckTriffic() {
 
 	// check if enters a new cycle
 	lastMonth := readFileInt(monthFile)
-	if int(curDay) == int(resetDay) && lastMonth != curMonth {
+	if int(curDay) == int(resetDay) && int(lastMonth) != curMonth {
 		log.Println("[*] Monthly reset triggered.")
 		RestoreFirewall()
-		writeFileInt(usageFile, 0)        // reset traffic usage
-		writeFileInt(monthFile, curMonth) // update current month
+		writeFileInt(usageFile, 0)               // reset traffic usage
+		writeFileInt(monthFile, int64(curMonth)) // update current month
 		return
 	}
 
@@ -111,13 +111,14 @@ func CheckTriffic() {
 	}
 	startTraffic := readFileInt(usageFile)
 	if startTraffic == -1 || curTraffic < int64(startTraffic) {
-		writeFileInt(usageFile, int(curTraffic))
-		writeFileInt(monthFile, curMonth)
-		log.Println("[*] Initial traffic usage recorded.")
+		writeFileInt(usageFile, curTraffic)
+		writeFileInt(monthFile, int64(curMonth))
+		startTraffic = curTraffic
+		log.Println("[*] Initial traffic usage recorded. " + fmt.Sprintf("%d %d bytes", startTraffic, curTraffic))
 	}
 
 	// calculate traffic usage
-	usedBytes := curTraffic - int64(startTraffic)
+	usedBytes := curTraffic - startTraffic
 	usedGB := usedBytes / (1024 * 1024 * 1024)
 	percent := (usedGB * 100) / trafficLimitGB
 
