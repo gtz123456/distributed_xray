@@ -105,10 +105,11 @@ func main() {
 	r.GET("/version", controllers.Version)
 	r.POST("connect", middleware.RequireAuth, controllers.Connect)
 	r.POST("/heartbeat", middleware.RequireAuth, controllers.HeartbeatFromClient)
-	r.POST("/traffic", middleware.RequireAuth, controllers.AddTraffic)
+
+	r.POST("/traffic", controllers.AddTraffic)
 
 	// Admin routes
-	r.POST("/admin/setplan", middleware.RequireAuth, controllers.SetPlan)
+	r.POST("/admin/setplan", controllers.SetPlan)
 	r.Run()
 
 }
