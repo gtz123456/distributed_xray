@@ -5,6 +5,8 @@ import (
 	"io"
 	"net"
 	"strconv"
+	"sync"
+	"sync/atomic"
 
 	"golang.org/x/time/rate"
 )
@@ -15,6 +17,28 @@ type limit struct { // unit: bytes per second
 }
 
 var defaultlimit = limit{Rate: 10 * 1000 * 1000 / 8, Burst: 16 * 1024} // for free plan
+
+type ConnStats struct {
+	Uploaded   int64
+	Downloaded int64
+}
+
+type StatsStore struct {
+	sync.Map // key: port(int), value: *ConnStats
+}
+
+type countingWriter struct {
+	w     io.Writer
+	count *int64
+}
+
+func (c *countingWriter) Write(p []byte) (int, error) {
+	n, err := c.w.Write(p)
+	if n > 0 {
+		atomic.AddInt64(c.count, int64(n))
+	}
+	return n, err
+}
 
 func limitReader(r io.Reader, lim *rate.Limiter) io.Reader {
 	pr, pw := io.Pipe()
@@ -40,7 +64,7 @@ func limitReader(r io.Reader, lim *rate.Limiter) io.Reader {
 	return pr
 }
 
-func handleConnection(conn net.Conn, dst string, upLim, downLim *rate.Limiter) {
+func handleConnection(conn net.Conn, dst string, upLim, downLim *rate.Limiter, statsStore *StatsStore) {
 	defer conn.Close()
 	targetConn, err := net.Dial("tcp", dst)
 	if err != nil {
@@ -48,12 +72,24 @@ func handleConnection(conn net.Conn, dst string, upLim, downLim *rate.Limiter) {
 	}
 	defer targetConn.Close()
 
-	// wrap and copy
-	go io.Copy(conn, limitReader(targetConn, downLim))
-	io.Copy(targetConn, limitReader(conn, upLim))
+	_, portStr, _ := net.SplitHostPort(conn.RemoteAddr().String())
+	port, _ := strconv.Atoi(portStr)
+
+	val, _ := statsStore.LoadOrStore(port, &ConnStats{})
+	stats := val.(*ConnStats)
+
+	go io.Copy(
+		&countingWriter{w: conn, count: &stats.Downloaded},
+		limitReader(targetConn, downLim),
+	)
+
+	io.Copy(
+		&countingWriter{w: targetConn, count: &stats.Uploaded},
+		limitReader(conn, upLim),
+	)
 }
 
-func NewProxy(ctx context.Context, port int, sourceIP string, rateLimit int, burst int) error {
+func NewProxy(ctx context.Context, port int, sourceIP string, rateLimit int, burst int, statsStore *StatsStore) error {
 	listener, err := net.Listen("tcp", ":"+strconv.Itoa(port))
 	if err != nil {
 		return err
@@ -82,6 +118,6 @@ func NewProxy(ctx context.Context, port int, sourceIP string, rateLimit int, bur
 			conn.Close()
 			continue
 		}
-		go handleConnection(conn, "localhost:443", upLim, downLim)
+		go handleConnection(conn, "localhost:443", upLim, downLim, statsStore)
 	}
 }

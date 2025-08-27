@@ -33,6 +33,7 @@ func SetPlan(c *gin.Context) {
 		})
 	}
 
+	// TODO: read plan from config file
 	if plan == "Free plan" {
 		user.Plan = "Free plan"
 		user.TrafficUsed = 0

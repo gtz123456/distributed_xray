@@ -461,3 +461,30 @@ func HeartbeatFromClient(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{})
 }
+
+func AddTraffic(c *gin.Context) {
+	var trafficReports []struct {
+		UUID    string `json:"uuid"`
+		Traffic int    `json:"traffic"`
+	}
+
+	if err := c.BindJSON(&trafficReports); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid traffic report format",
+		})
+		return
+	}
+
+	for _, report := range trafficReports {
+		var user db.User
+		if err := db.DB.First(&user, "uuid = ?", report.UUID).Error; err != nil {
+			continue
+		}
+		user.TrafficUsed += report.Traffic
+		db.DB.Model(&user).Update("traffic_used", user.TrafficUsed)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"status": "success",
+	})
+}

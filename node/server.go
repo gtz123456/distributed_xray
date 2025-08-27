@@ -1,14 +1,17 @@
 package node
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"go-distributed/registry"
 	"io"
 	"log"
 	"math/rand"
 	"net"
 	"net/http"
+	"os"
 	"strconv"
 	"sync"
 	"time"
@@ -37,6 +40,8 @@ var (
 	connections     = make(map[string]int) // uuid: port
 	proxyServices   = make(map[string]*ProxyService)
 	connectionsLock sync.Mutex
+	statsStore      = &StatsStore{}
+	statsCache      = &StatsStore{}
 )
 
 func RegisterHandlers() {
@@ -219,7 +224,7 @@ func (sh *nodeHandler) handleConnect(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	go NewProxy(ctx, port, clientip, rateLimitInt, burstInt) // start proxy service
+	go NewProxy(ctx, port, clientip, rateLimitInt, burstInt, statsStore) // start proxy service
 
 	connectionsLock.Lock()
 	connections[uuid] = port
@@ -269,6 +274,10 @@ func (sh *nodeHandler) handleDisconnect(w http.ResponseWriter, r *http.Request) 
 	for _, uuid := range uuids {
 		log.Printf("Processing disconnect for UUID: %s", uuid)
 
+		port := connections[uuid]
+
+		statsStore.Delete(port) // remove stats for this port
+
 		delete(connections, uuid)
 
 		if svc, ok := proxyServices[uuid]; ok {
@@ -278,4 +287,87 @@ func (sh *nodeHandler) handleDisconnect(w http.ResponseWriter, r *http.Request) 
 	}
 
 	w.WriteHeader(http.StatusOK)
+}
+
+func StartTrafficReport() {
+	go func() {
+		for {
+			time.Sleep(5 * time.Second)
+
+			connectionsLock.Lock()
+			connectionsSnapshot := make(map[string]int)
+			for uuid, port := range connections {
+				connectionsSnapshot[uuid] = port
+			}
+			connectionsLock.Unlock()
+
+			report := make([]map[string]interface{}, 0, len(connectionsSnapshot))
+
+			for uuid, port := range connectionsSnapshot {
+				val, ok := statsStore.Load(port)
+				if !ok {
+					continue
+				}
+				stats := val.(*ConnStats)
+
+				val, ok = statsCache.Load(port)
+				var oldStats ConnStats
+				if ok {
+					oldStats = *(val.(*ConnStats))
+				} else {
+					oldStats = ConnStats{}
+				}
+
+				diff := (stats.Downloaded + stats.Uploaded) - (oldStats.Downloaded + oldStats.Uploaded)
+
+				statsCopy := *stats
+				statsCache.Store(port, &statsCopy)
+
+				report = append(report, map[string]interface{}{
+					"uuid":    uuid,
+					"traffic": diff,
+				})
+			}
+
+			if len(report) > 0 {
+				data, err := json.Marshal(report)
+				if err != nil {
+					log.Println("Marshal traffic report error:", err)
+					continue
+				}
+
+				providers, err := registry.GetProviders(registry.WebService)
+
+				if err != nil {
+					log.Println("GetProviders error:", err)
+					continue
+				}
+
+				webPort := os.Getenv("Web_Port")
+				provider := providers[0] // TODO
+
+				go func(provider registry.Registration) {
+					url := fmt.Sprintf("http://%s:%s/traffic", provider.PublicIP, webPort)
+					req, err := http.NewRequest("POST", url, bytes.NewBuffer(data))
+					if err != nil {
+						log.Println("Create request error:", err)
+						return
+					}
+					req.Header.Set("Content-Type", "application/json")
+
+					client := &http.Client{}
+					resp, err := client.Do(req)
+					if err != nil {
+						log.Println("Send request error:", err)
+						return
+					}
+					defer resp.Body.Close()
+
+					if resp.StatusCode != http.StatusOK {
+						log.Println("Send request failed:", resp.Status)
+					}
+				}(provider)
+			}
+		}
+	}()
 }
