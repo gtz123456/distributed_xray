@@ -38,7 +38,7 @@ func StartPlanMonitor() {
 
 		users = nil
 		// Find all active users whose PlanEnd is before now or TrafficUsed is equal or greater than TrafficLimit
-		err = db.DB.Model(&db.User{}).Where("active = ? AND (plan_end < ? OR traffic_used >= traffic_limit)", true, now).Find(&users).Error
+		err = db.DB.Model(&db.User{}).Where("plan_end < ? OR traffic_used >= traffic_limit", now).Find(&users).Error
 		if err != nil {
 			return
 		}
@@ -47,8 +47,8 @@ func StartPlanMonitor() {
 		disconnectURLs := make(map[string][]string)
 
 		for _, user := range users {
+			log.Printf("User %s: TrafficUsed=%d, TrafficLimit=%d", user.Email, user.TrafficUsed, user.TrafficLimit)
 			if user.PlanEnd.Before(now) || user.TrafficUsed >= user.TrafficLimit {
-				log.Printf("[!] User %s plan expired or traffic limit reached. Disconnecting user.", user.Email)
 				// Disconnect all connections for this user
 				err = db.DB.Model(&db.User{}).Where("uuid = ?", user.UUID).Update("active", false).Error
 				if err != nil {

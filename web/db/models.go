@@ -21,6 +21,4 @@ type User struct {
 
 	TrafficUsed  int // in Bytes
 	TrafficLimit int // in Bytes, -1 means unlimited
-
-	Active bool // if the user has an active connection
 }

@@ -367,15 +367,6 @@ func Connect(c *gin.Context) {
 		return
 	}
 
-	// set the user as active
-	userinfo.Active = true
-	if err := db.DB.Model(&userinfo).Update("active", true).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to update user active status: " + err.Error(),
-		})
-		return
-	}
-
 	// Respond with the node port and pubkey
 	userConnectionMapMutex.Lock()
 	defer userConnectionMapMutex.Unlock()
