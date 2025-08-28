@@ -281,6 +281,14 @@ func Connect(c *gin.Context) {
 		return
 	}
 
+	// check if user has enough traffic
+	if userinfo.TrafficUsed >= userinfo.TrafficLimit && userinfo.TrafficLimit != -1 {
+		c.JSON(http.StatusForbidden, gin.H{
+			"error": "You have reached your traffic limit",
+		})
+		return
+	}
+
 	uuid := userinfo.UUID
 	email := userinfo.Email
 
