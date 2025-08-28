@@ -59,7 +59,12 @@ func readFileInt(path string) int64 {
 }
 
 func writeFileInt(path string, val int64) {
-	_ = os.WriteFile(path, []byte(fmt.Sprintf("%d", val)), 0644)
+	buf := make([]byte, 0, 32)
+	buf = fmt.Appendf(buf, "%d", val)
+	err := os.WriteFile(path, buf, 0644)
+	if err != nil {
+		log.Printf("[!] Failed to write %d to %s: %v", val, path, err)
+	}
 }
 
 func runCommand(name string, args ...string) error {
@@ -110,7 +115,7 @@ func CheckTriffic() {
 		log.Fatal(err)
 	}
 	startTraffic := readFileInt(usageFile)
-	if startTraffic == -1 || curTraffic < int64(startTraffic) {
+	if startTraffic == -1 || curTraffic < startTraffic {
 		writeFileInt(usageFile, curTraffic)
 		writeFileInt(monthFile, int64(curMonth))
 		startTraffic = curTraffic
