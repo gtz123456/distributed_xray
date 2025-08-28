@@ -29,9 +29,11 @@ func StartPlanMonitor() {
 			users[i].NextRenew = users[i].NextRenew.Add(users[i].RenewCycle) // Update NextRenew to the next cycle
 		}
 
-		err = db.DB.Save(&users).Error
-		if err != nil {
-			return
+		for i := range users {
+			err = db.DB.Save(&users[i]).Error
+			if err != nil {
+				return
+			}
 		}
 
 		users = nil
@@ -46,6 +48,7 @@ func StartPlanMonitor() {
 
 		for _, user := range users {
 			if user.PlanEnd.Before(now) || user.TrafficUsed >= user.TrafficLimit {
+				log.Printf("[!] User %s plan expired or traffic limit reached. Disconnecting user.", user.Email)
 				// Disconnect all connections for this user
 				err = db.DB.Model(&db.User{}).Where("uuid = ?", user.UUID).Update("active", false).Error
 				if err != nil {
