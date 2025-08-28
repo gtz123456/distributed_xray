@@ -38,7 +38,7 @@ func StartPlanMonitor() {
 			}
 
 			users = nil
-			// Find all active users whose PlanEnd is before now or TrafficUsed is equal or greater than TrafficLimit
+			// Find all users whose PlanEnd is before now or TrafficUsed is equal or greater than TrafficLimit
 			err = db.DB.Model(&db.User{}).Where("plan_end < ? OR traffic_used >= traffic_limit", now).Find(&users).Error
 			if err != nil {
 				return
