@@ -340,6 +340,11 @@ func StartTrafficReport() {
 
 				providers, err := registry.GetProviders(registry.WebService)
 
+				if len(providers) == 0 {
+					log.Println("No available providers found")
+					continue
+				}
+
 				if err != nil {
 					log.Println("GetProviders error:", err)
 					continue
