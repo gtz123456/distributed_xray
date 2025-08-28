@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"go-distributed/registry"
-	"go-distributed/web/db"
 	"log"
 	"net/http"
 	"os"
@@ -112,10 +111,6 @@ func StartHeartbeatMonitor() {
 				userConnectionMapMutex.Lock()
 				if len(validConnections) == 0 {
 					delete(userConnectionMap, userUUID)
-					// update the user in the database to set Active to false
-					if err := db.DB.Model(&db.User{}).Where("uuid = ?", userUUID).Update("active", false).Error; err != nil {
-						log.Printf("Error updating user %s to inactive: %v", userUUID, err)
-					}
 
 					log.Printf("Removed user %s from connection map as they have no valid connections left.", userUUID)
 				} else {
