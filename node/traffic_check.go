@@ -6,14 +6,15 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 )
 
-const (
-	usageFile = "/var/tmp/traffic_usage.dat"
-	monthFile = "/var/tmp/traffic_cycle_month.dat"
+var (
+	usageFile = filepath.Join(os.TempDir(), "traffic_usage.dat")
+	monthFile = filepath.Join(os.TempDir(), "traffic_cycle_month.dat")
 )
 
 func getEnvInt(key string, defaultValue int64) int64 {

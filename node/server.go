@@ -303,7 +303,7 @@ func StartTrafficReport() {
 
 			report := make([]map[string]interface{}, 0, len(connectionsSnapshot))
 
-			log.Printf("Connections: %v %v", connectionsSnapshot, statsStore)
+			// log.Printf("Connections: %v %v", connectionsSnapshot, statsStore)
 
 			for uuid, port := range connectionsSnapshot {
 				val, ok := statsStore.Load(port)
