@@ -94,6 +94,7 @@ func main() {
 	log.SetClientLogger(logProvider.ServiceURL, reg.ServiceName)
 
 	controllers.StartHeartbeatMonitor()
+	controllers.StartPlanMonitor()
 
 	r := gin.Default()
 	r.Use(CORSMiddleware())
