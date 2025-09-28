@@ -19,7 +19,7 @@ type Transaction struct {
 	EnergyFee            int64         `json:"energy_fee"`
 	EnergyUsageTotal     int64         `json:"energy_usage_total"`
 	RawData              RawData       `json:"raw_data"`
-	InternalTransactions []interface{} `json:"internal_transactions"` // 可根据需要进一步定义
+	InternalTransactions []interface{} `json:"internal_transactions"`
 }
 
 type Ret struct {

@@ -4,6 +4,7 @@
 package order
 
 import (
+	"go-distributed/payment/db"
 	"time"
 )
 
@@ -11,21 +12,10 @@ import (
 
 const defaultWalletAddress = "TTfNfANq9q68hm6xuAjSfafitBo9Did8SY" // default wallet address
 
-type Order struct {
-	ID           string    `db:"id"`            // uuid
-	TrxAddress   string    `db:"trx_address"`   // wallet address
-	Amount       int       `db:"amount"`        // amount to be paid, in sun
-	ActualAmount int       `db:"actual_amount"` // actual amount to be paid, in sun
-	PaymentLink  string    `db:"payment_link"`  // payment link
-	Status       string    `db:"status"`        // 3 status: pending, paid, expired
-	CreatedAt    time.Time `db:"created_at"`    // created time
-	Callback     string    `db:"callback"`      // callback url
-}
-
 var ActualAmountToID map[int64]string = make(map[int64]string) // ActualAmount → Order ID
 var intervalSet = NewIntervalSet()                             // store the actual amounts as intervals, for fast searching
 
-var orderMap = make(map[string]*Order) // Order ID → Order
+var orderMap = make(map[string]*db.Order) // Order ID → Order
 
 // find minimal actual amount for the given amount
 func mapAmountToActualAmount(amount int) (int, error) {
@@ -34,14 +24,14 @@ func mapAmountToActualAmount(amount int) (int, error) {
 	return actualAmount, nil
 }
 
-func CreateOrder(id string, amount int, callback string) (Order, error) {
+func CreateOrder(id string, amount int, callback string) (db.Order, error) {
 	actualAmount, err := mapAmountToActualAmount(amount)
 
 	if err != nil {
-		return Order{}, err
+		return db.Order{}, err
 	}
 
-	order := Order{
+	order := db.Order{
 		ID:           id,
 		TrxAddress:   defaultWalletAddress,
 		Amount:       amount,
@@ -53,6 +43,8 @@ func CreateOrder(id string, amount int, callback string) (Order, error) {
 
 	orderMap[id] = &order
 	ActualAmountToID[int64(actualAmount)] = id // map actual amount to order id
+
+	db.DB.Create(&order)
 
 	return order, nil
 }

@@ -44,6 +44,15 @@ func main() {
 		stlog.Println("Error getting public IPv6:", err6)
 	}
 
+	connectivity := node.GetConnectivity()
+
+	tags := []string{}
+	for k, v := range connectivity {
+		if v {
+			tags = append(tags, k)
+		}
+	}
+
 	r := registry.Registration{
 		ServiceName:      registry.NodeService,
 		ServiceURL:       serviceAddress,
@@ -52,6 +61,7 @@ func main() {
 		Description:      os.Getenv("Node_Description"),
 		RequiredServices: []registry.ServiceName{registry.LogService, registry.WebService},
 		ServiceUpdateURL: serviceAddress + "/services",
+		Tags:             tags,
 	}
 
 	ctx, err := service.Start(context.Background(), host, port, r, node.RegisterHandlers)

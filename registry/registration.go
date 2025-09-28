@@ -14,6 +14,7 @@ type Registration struct {
 	Description      string
 	RequiredServices []ServiceName
 	ServiceUpdateURL string
+	Tags             []string
 }
 
 type ServiceName string

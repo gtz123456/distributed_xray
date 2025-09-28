@@ -81,7 +81,6 @@ func Signup(c *gin.Context) {
 		Password:  string(hash),
 		UUID:      UUID,
 		Plan:      "Free plan",
-		PlanStart: time.Now(),
 		PlanEnd:   time.Now().Add(100 * 365 * 24 * time.Hour),
 
 		RenewCycle: 31 * 24 * time.Hour, // renew every 31 days
@@ -93,12 +92,11 @@ func Signup(c *gin.Context) {
 
 	// free 30 days Premium Plan trial for new users
 	user := db.User{
-		Email:     body.Email,
-		Password:  string(hash),
-		UUID:      UUID,
-		Plan:      "Premium plan",
-		PlanStart: time.Now(),
-		PlanEnd:   time.Now().Add(100 * 12 * 31 * 24 * time.Hour),
+		Email:    body.Email,
+		Password: string(hash),
+		UUID:     UUID,
+		Plan:     "Premium plan",
+		PlanEnd:  time.Now().Add(100 * 12 * 31 * 24 * time.Hour),
 
 		RenewCycle: 31 * 24 * time.Hour, // renew every 31 days
 		NextRenew:  time.Now().Add(31 * 24 * time.Hour),
@@ -189,7 +187,6 @@ func User(c *gin.Context) {
 		"email":         userinfo.Email,
 		"uuid":          userinfo.UUID,
 		"plan":          userinfo.Plan,
-		"plan_start":    userinfo.PlanStart.Format(time.RFC3339),
 		"plan_end":      userinfo.PlanEnd.Format(time.RFC3339),
 		"renew_cycle":   userinfo.RenewCycle.String(),
 		"next_renew":    userinfo.NextRenew.Format(time.RFC3339),
@@ -222,7 +219,7 @@ func Servers(c *gin.Context) {
 			IPV6:        reg.PublicIPv6,
 			ServiceID:   reg.ServiceID,
 			Description: reg.Description,
-			Tags:        []string{},
+			Tags:        reg.Tags,
 		}
 
 		servers = append(servers, server)
@@ -483,6 +480,57 @@ func AddTraffic(c *gin.Context) {
 		db.DB.Model(&user).Update("traffic_used", user.TrafficUsed)
 	}
 
+	c.JSON(http.StatusOK, gin.H{
+		"status": "success",
+	})
+}
+
+func Subscribe(c *gin.Context) {
+	var req struct {
+		UUID     string `json:"uuid"`
+		Plan     string `json:"plan"`
+		Duration int    `json:"duration"` // in months
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid request format",
+		})
+		return
+	}
+
+	price := 300                   // TODO: get plan price from env
+	amount := price * req.Duration // in cents
+
+	var user db.User
+	if err := db.DB.First(&user, "uuid = ?", req.UUID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "User not found",
+		})
+		return
+	}
+
+	// Check if user has enough balance
+	if user.Balance < amount {
+		c.JSON(http.StatusPaymentRequired, gin.H{
+			"error": "Insufficient balance",
+		})
+		return
+	}
+
+	if req.Plan != "Premium plan" && req.Plan != "Free plan" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid plan",
+		})
+		return
+	}
+
+	user.Balance -= amount
+	user.Plan = req.Plan
+	user.PlanEnd = user.PlanEnd.AddDate(0, req.Duration*30, 0) // extend plan end by duration months
+	db.DB.Save(&user)
+
+	// Subscribe the user to the service
 	c.JSON(http.StatusOK, gin.H{
 		"status": "success",
 	})
