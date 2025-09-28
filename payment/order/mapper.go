@@ -14,6 +14,7 @@ var ActualAmountToID map[int64]string = make(map[int64]string) // ActualAmount â
 var intervalSet = NewIntervalSet()                             // store the actual amounts as intervals, for fast searching
 
 var orderMap = make(map[string]*db.Order) // Order ID â†’ Order
+// TODO: replace with persistent storage
 
 // find minimal actual amount for the given amount
 func mapAmountToActualAmount(amount int) (int, error) {

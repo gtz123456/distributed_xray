@@ -5,6 +5,7 @@ package order
 import (
 	"encoding/json"
 	"fmt"
+	"go-distributed/payment/db"
 	"net/http"
 	"os"
 	"time"
@@ -84,6 +85,8 @@ func UpdateOrderStatus() {
 			fmt.Println("Order found:", order)
 			if order.Status == "pending" {
 				order.Status = "paid"
+				intervalSet.Remove(order.ActualAmount)
+				db.DB.Model(&db.Order{}).Where("id = ?", order.ID).Update("status", "paid")
 				if order.Callback != "" {
 					callbackUrl := fmt.Sprintf("%s?id=%s", order.Callback, order.ID)
 					resp, err := http.Get(callbackUrl)

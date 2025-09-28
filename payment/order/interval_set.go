@@ -50,6 +50,19 @@ func (s *IntervalSet) Add(x int) {
 	}
 }
 
+func (s *IntervalSet) Remove(x int) {
+	pos := sort.Search(len(s.intervals), func(i int) bool {
+		return s.intervals[i].start > x
+	})
+
+	if pos > 0 {
+		prev := s.intervals[pos-1]
+		if x >= prev.start && x <= prev.end {
+			s.intervals = append(s.intervals[:pos-1], s.intervals[pos:]...)
+		}
+	}
+}
+
 // find the first available amount greater than or equal to x
 func (s *IntervalSet) NextMissing(x int) int {
 	pos := sort.Search(len(s.intervals), func(i int) bool {

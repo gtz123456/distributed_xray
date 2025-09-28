@@ -59,7 +59,7 @@ func (ph *payHandler) handleCreateOrder(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, "Invalid amount", http.StatusBadRequest)
 		return
 	}
-	order, err := CreateOrder(id, int(amountInt), callback)
+	order, err := CreateOrder(id, int(amountInt)*1000000, callback)
 
 	if err != nil {
 		http.Error(w, "Failed to create order", http.StatusInternalServerError)

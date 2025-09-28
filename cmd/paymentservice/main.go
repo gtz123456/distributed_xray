@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"go-distributed/payment/db"
 	"go-distributed/payment/order"
 	"go-distributed/registry"
 	"go-distributed/service"
@@ -11,9 +12,13 @@ import (
 	"os"
 )
 
-func main() {
+func init() {
 	utils.LoadEnv()
+	db.Connect()
+	db.Sync()
+}
 
+func main() {
 	host, err := utils.GetPublicIP()
 	if err != nil {
 		stlog.Fatalln("Error getting host IP:", err)
