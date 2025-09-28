@@ -71,7 +71,7 @@ func main() {
 		ServiceUpdateURL: serviceAddress + "/service",
 	}
 
-	_, err = service.Start(context.Background(), host, port, reg, log.RegisterHandlers)
+	_, err = service.Start(context.Background(), "", port, reg, log.RegisterHandlers)
 	if err != nil {
 		stlog.Fatalln(err)
 	}

@@ -32,7 +32,7 @@ func main() {
 		ServiceUpdateURL: serviceAddress + "/services",
 	}
 
-	ctx, err := service.Start(context.Background(), host, port, r, order.RegisterHandlers)
+	ctx, err := service.Start(context.Background(), "localhost", port, r, order.RegisterHandlers)
 	if err != nil {
 		stlog.Fatalln(err)
 	}

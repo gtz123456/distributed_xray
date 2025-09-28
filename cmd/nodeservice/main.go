@@ -64,7 +64,7 @@ func main() {
 		Tags:             tags,
 	}
 
-	ctx, err := service.Start(context.Background(), host, port, r, node.RegisterHandlers)
+	ctx, err := service.Start(context.Background(), "", port, r, node.RegisterHandlers)
 	if err != nil {
 		stlog.Fatalln(err)
 	}

@@ -8,9 +8,7 @@ import (
 	"time"
 )
 
-// d2d0d916521851f8a3a2ea8cc9d63d61ba57ca844d8e1240817a4dab60b2c0db
-
-const defaultWalletAddress = "TTfNfANq9q68hm6xuAjSfafitBo9Did8SY" // default wallet address
+const defaultWalletAddress = "TQehEHqevPkudydohYrjJxDwdBkAgFUebw" // default wallet address
 
 var ActualAmountToID map[int64]string = make(map[int64]string) // ActualAmount → Order ID
 var intervalSet = NewIntervalSet()                             // store the actual amounts as intervals, for fast searching

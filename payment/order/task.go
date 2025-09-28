@@ -13,7 +13,7 @@ import (
 )
 
 const paymentTimeout = 10 * time.Minute
-const apiUrl = "https://api.shasta.trongrid.io/v1/accounts/%s/transactions"
+const apiUrl = "https://api.shasta.trongrid.io/v1/accounts/%s/transactions" // testnet
 
 var trongridApiKey = os.Getenv("TRONGRID_API_KEY")
 
