@@ -1,89 +1,141 @@
 package order
 
-import "sort"
+import (
+	"github.com/google/btree"
+)
 
-// store the the actual amounts as intervals, to binarily search for the next missing amount
-type Interval struct {
-	start, end int
+// Data structure to store a set of integers and can do Add, Remove, NextMissing operations at O(log n) time
+// nextMissing(x) returns the smallest integer >= x that is not in the set
+// we use a B-tree to store the intervals of consecutive integers in the set
+
+type interval struct {
+	l, r int
+}
+
+func (a interval) Less(b btree.Item) bool {
+	return a.l < b.(interval).l
 }
 
 type IntervalSet struct {
-	intervals []Interval
+	tree *btree.BTree
 }
 
 func NewIntervalSet() *IntervalSet {
 	return &IntervalSet{
-		intervals: []Interval{},
+		tree: btree.New(2),
 	}
 }
 
+// Add a number to the set
 func (s *IntervalSet) Add(x int) {
-	pos := sort.Search(len(s.intervals), func(i int) bool {
-		return s.intervals[i].start > x
+	iv := interval{x, x}
+	// Find the largest interval <= x
+	var prev *interval
+	s.tree.DescendLessOrEqual(iv, func(it btree.Item) bool {
+		p := it.(interval)
+		if p.r+1 >= x { // can merge
+			prev = &p
+		}
+		return false
 	})
 
-	// Check for possible merging with left and right intervals
-	mergeLeft := pos > 0 && s.intervals[pos-1].end+1 >= x
-	mergeRight := pos < len(s.intervals) && s.intervals[pos].start-1 <= x
-
-	if mergeLeft && mergeRight {
-		left := s.intervals[pos-1]
-		right := s.intervals[pos]
-		newInterval := Interval{start: left.start, end: max(right.end, x)}
-		// Remove left and right
-		s.intervals = append(s.intervals[:pos-1], s.intervals[pos+1:]...)
-		// Insert merged
-		s.intervals = insertInterval(s.intervals, newInterval)
-	} else if mergeLeft {
-		left := s.intervals[pos-1]
-		newInterval := Interval{start: left.start, end: max(left.end, x)}
-		s.intervals = append(s.intervals[:pos-1], s.intervals[pos:]...)
-		s.intervals = insertInterval(s.intervals, newInterval)
-	} else if mergeRight {
-		right := s.intervals[pos]
-		newInterval := Interval{start: min(right.start, x), end: right.end}
-		s.intervals = append(s.intervals[:pos], s.intervals[pos+1:]...)
-		s.intervals = insertInterval(s.intervals, newInterval)
+	if prev != nil {
+		// remove the previous interval
+		s.tree.Delete(*prev)
+		// expand the right boundary
+		if x > prev.r {
+			prev.r = x
+		}
+		// Check if we can merge with the successor
+		var next *interval
+		s.tree.AscendGreaterOrEqual(*prev, func(it btree.Item) bool {
+			n := it.(interval)
+			if prev.r+1 >= n.l {
+				next = &n
+			}
+			return false
+		})
+		if next != nil {
+			s.tree.Delete(*next)
+			if next.r > prev.r {
+				prev.r = next.r
+			}
+		}
+		s.tree.ReplaceOrInsert(*prev)
 	} else {
-		newInterval := Interval{start: x, end: x}
-		s.intervals = insertInterval(s.intervals, newInterval)
+		// Check if we can merge with the successor
+		var next *interval
+		s.tree.AscendGreaterOrEqual(iv, func(it btree.Item) bool {
+			n := it.(interval)
+			if n.l <= x+1 {
+				next = &n
+			}
+			return false
+		})
+		if next != nil {
+			s.tree.Delete(*next)
+			if x < next.l {
+				next.l = x
+			}
+			if x > next.r {
+				next.r = x
+			}
+			s.tree.ReplaceOrInsert(*next)
+		} else {
+			s.tree.ReplaceOrInsert(iv)
+		}
 	}
 }
 
+// Remove a number from the set
 func (s *IntervalSet) Remove(x int) {
-	pos := sort.Search(len(s.intervals), func(i int) bool {
-		return s.intervals[i].start > x
-	})
-
-	if pos > 0 {
-		prev := s.intervals[pos-1]
-		if x >= prev.start && x <= prev.end {
-			s.intervals = append(s.intervals[:pos-1], s.intervals[pos:]...)
+	iv := interval{x, x}
+	var target *interval
+	s.tree.DescendLessOrEqual(iv, func(it btree.Item) bool {
+		p := it.(interval)
+		if p.l <= x && x <= p.r {
+			target = &p
 		}
+		return false
+	})
+	if target == nil {
+		return
+	}
+	s.tree.Delete(*target)
+	if target.l < x {
+		s.tree.ReplaceOrInsert(interval{target.l, x - 1})
+	}
+	if x < target.r {
+		s.tree.ReplaceOrInsert(interval{x + 1, target.r})
 	}
 }
 
-// find the first available amount greater than or equal to x
+// NextMissing returns the smallest integer >= x that is not in the set
 func (s *IntervalSet) NextMissing(x int) int {
-	pos := sort.Search(len(s.intervals), func(i int) bool {
-		return s.intervals[i].start > x
-	})
-
-	if pos > 0 {
-		prev := s.intervals[pos-1]
-		if x >= prev.start && x <= prev.end {
-			return prev.end + 1
+	iv := interval{x, x}
+	var res int
+	found := false
+	s.tree.DescendLessOrEqual(iv, func(it btree.Item) bool {
+		p := it.(interval)
+		if p.l <= x && x <= p.r {
+			res = p.r + 1
+			found = true
 		}
+		return false
+	})
+	if found {
+		return res
+	}
+	// Check if the predecessor interval covers x
+	var nxt interval
+	got := false
+	s.tree.AscendGreaterOrEqual(iv, func(it btree.Item) bool {
+		nxt = it.(interval)
+		got = true
+		return false
+	})
+	if !got || x < nxt.l {
+		return x
 	}
 	return x
-}
-
-func insertInterval(arr []Interval, val Interval) []Interval {
-	pos := sort.Search(len(arr), func(i int) bool {
-		return arr[i].start > val.start
-	})
-	arr = append(arr, Interval{}) // extend slice
-	copy(arr[pos+1:], arr[pos:])  // shift right
-	arr[pos] = val                // insert
-	return arr
 }
