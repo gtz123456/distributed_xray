@@ -13,7 +13,7 @@ import (
 	"log"
 )
 
-const paymentTimeout = 10 * time.Minute
+const paymentTimeout = 15 * time.Minute
 const apiUrl = "https://api.shasta.trongrid.io/v1/accounts/%s/transactions" // testnet
 
 var trongridApiKey = os.Getenv("TRONGRID_API_KEY")
@@ -116,7 +116,7 @@ func UpdateOrderStatus() {
 func RemoveTimeoutOrders() {
 	for id, order := range orderMap {
 		if time.Since(order.CreatedAt) > paymentTimeout {
-			// delete(orderMap, id)
+			delete(orderMap, id)
 			delete(ActualAmountToID, int64(order.ActualAmount))
 			log.Println("Order timeout:", id)
 		}

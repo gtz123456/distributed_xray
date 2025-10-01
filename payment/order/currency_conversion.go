@@ -34,7 +34,7 @@ type OKXResponse struct {
 	} `json:"data"`
 }
 
-// fetch fiat rates from Open ER API
+// Fetch fiat rates from Open ER API
 func FetchFiatRates() (map[string]float64, error) {
 	url := "https://open.er-api.com/v6/latest/USD"
 	resp, err := http.Get(url)
@@ -60,7 +60,7 @@ func FetchFiatRates() (map[string]float64, error) {
 	return rates, nil
 }
 
-// fetch crypto pair price from OKX
+// Fetch crypto pair price from OKX
 func FetchOKXPair(instId string) (float64, error) {
 	url := fmt.Sprintf("https://www.okx.com/api/v5/market/ticker?instId=%s", instId)
 	resp, err := http.Get(url)
@@ -83,7 +83,7 @@ func FetchOKXPair(instId string) (float64, error) {
 }
 
 func FetchAllRates() (map[string]float64, error) {
-	// Fetch fiat rates
+	// fetch fiat rates
 	fiatRates, err := FetchFiatRates()
 	if err != nil {
 		return nil, err

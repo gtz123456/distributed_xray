@@ -12,6 +12,9 @@ func TestCryptoRate(t *testing.T) {
 		t.Error("USD to CNY rate out of expected range:", usdToCny)
 	}
 
+	usdtToCny, _ := order.Convert(1, "USDT", "CNY")
+	t.Log("USDT to CNY rate:", usdtToCny)
+
 	cnyToTrx, _ := order.Convert(100, "CNY", "TRX")
 	t.Logf("100 CNY = %.4f TRX", cnyToTrx)
 

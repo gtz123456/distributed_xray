@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"go-distributed/payment/db"
 	"net/http"
 	"strconv"
 	"time"
@@ -24,6 +25,14 @@ func RegisterHandlers() {
 		for {
 			UpdateOrderStatus()
 			time.Sleep(5 * time.Second)
+		}
+	}()
+
+	go func() {
+		// RemoveTimeoutOrders every 20 seconds
+		for {
+			RemoveTimeoutOrders()
+			time.Sleep(20 * time.Second)
 		}
 	}()
 }
@@ -85,10 +94,16 @@ func (ph *payHandler) handleGetOrderStatus(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	order, ok := orderMap[id]
+	order, ok := orderMap[id] // first try to get from memory
 	if !ok {
-		http.Error(w, "Order not found", http.StatusNotFound)
-		return
+		// try to get from db
+		var dbOrder db.Order
+		result := db.DB.First(&dbOrder, "id = ?", id)
+		if result.Error != nil {
+			http.Error(w, "Order not found", http.StatusNotFound)
+			return
+		}
+		order = &dbOrder
 	}
 
 	w.Header().Set("Content-Type", "application/json")
