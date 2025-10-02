@@ -99,7 +99,7 @@ func main() {
 	r := gin.Default()
 	r.Use(CORSMiddleware())
 
-	globalLimiter := middleware.NewRateLimiter(10, time.Minute) // 10 requests/min/IP
+	globalLimiter := middleware.NewRateLimiter(15, time.Minute) // 15 requests/min/IP
 	globalLimiter.StartCleanup(10 * time.Minute)
 
 	r.POST("/signup", globalLimiter.Middleware(), controllers.Signup)
