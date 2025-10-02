@@ -10,6 +10,13 @@ iptables -A INPUT -p tcp --dport 443 -j ACCEPT
 
 iptables -A OUTPUT -p tcp --sport 443 -j ACCEPT
 
+### run binary
+go build ./cmd/nodeservice
+go build ./cmd/logservice
+go build ./cmd/paymentservice
+go build ./cmd/regservice
+go build ./cmd/webservice
+
 ### build docker image
 docker build -t logservice --target=logservice .
 
