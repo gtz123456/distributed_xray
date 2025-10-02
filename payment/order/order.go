@@ -17,6 +17,9 @@ var orderMap = make(map[string]*db.Order) // Order ID → Order
 // TODO: replace with persistent storage eg. Redis
 
 func init() {
+	db.Connect()
+	db.Sync()
+
 	err := RestoreStateFromDB()
 	if err != nil {
 		panic(err)

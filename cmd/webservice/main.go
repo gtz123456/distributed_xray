@@ -8,7 +8,6 @@ import (
 	"go-distributed/service"
 	"go-distributed/utils"
 	"go-distributed/web/controllers"
-	"go-distributed/web/db"
 	"go-distributed/web/middleware"
 	stlog "log"
 	"math/rand"
@@ -20,8 +19,6 @@ import (
 
 func init() {
 	utils.LoadEnv()
-	db.Connect()
-	db.Sync()
 }
 
 func CORSMiddleware() gin.HandlerFunc {
