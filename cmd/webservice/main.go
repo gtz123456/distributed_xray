@@ -99,22 +99,20 @@ func main() {
 	r := gin.Default()
 	r.Use(CORSMiddleware())
 
-	globalLimiter := middleware.NewRateLimiter(10, time.Minute) // 10 requests per minute per IP
-	globalLimiter.StartCleanup(10 * time.Minute)                // clear old ips every 10 minutes
-	r.Use(globalLimiter.Middleware())
+	globalLimiter := middleware.NewRateLimiter(10, time.Minute) // 10 requests/min/IP
+	globalLimiter.StartCleanup(10 * time.Minute)
 
-	r.POST("/signup", controllers.Signup)
-	r.GET("/verify", controllers.VerifyEmail)
-	r.POST("/login", controllers.Login)
-	r.GET("/user", middleware.RequireAuth, controllers.User)
-	r.GET("/realitykey", middleware.RequireAuth, controllers.Realitykey)
-	r.GET("/servers", middleware.RequireAuth, controllers.Servers)
-	r.GET("/version", controllers.Version)
-	r.POST("connect", middleware.RequireAuth, controllers.Connect)
+	r.POST("/signup", globalLimiter.Middleware(), controllers.Signup)
+	r.GET("/verify", globalLimiter.Middleware(), controllers.VerifyEmail)
+	r.POST("/login", globalLimiter.Middleware(), controllers.Login)
+	r.GET("/user", globalLimiter.Middleware(), middleware.RequireAuth, controllers.User)
+	r.GET("/realitykey", globalLimiter.Middleware(), middleware.RequireAuth, controllers.Realitykey)
+	r.GET("/servers", globalLimiter.Middleware(), middleware.RequireAuth, controllers.Servers)
+	r.GET("/version", globalLimiter.Middleware(), controllers.Version)
+	r.POST("/connect", globalLimiter.Middleware(), middleware.RequireAuth, controllers.Connect)
+
 	r.POST("/heartbeat", middleware.RequireAuth, controllers.HeartbeatFromClient)
-
 	r.POST("/traffic", controllers.AddTraffic)
-
 	// Admin routes
 	r.POST("/admin/setplan", controllers.SetPlan)
 	r.Run()
