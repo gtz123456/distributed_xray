@@ -76,21 +76,6 @@ func Signup(c *gin.Context) {
 	// Create the user
 	UUID := uuid.New().String()
 
-	/* user := db.User{
-		Email:     body.Email,
-		Password:  string(hash),
-		UUID:      UUID,
-		Plan:      "Free plan",
-		PlanEnd:   time.Now().Add(100 * 365 * 24 * time.Hour),
-
-		RenewCycle: 31 * 24 * time.Hour, // renew every 31 days
-		NextRenew:  time.Now().Add(31 * 24 * time.Hour),
-
-		TrafficUsed:  0,
-		TrafficLimit: 50 * 1000, // 50 GB for free plan
-	} */
-
-	// free 30 days Premium Plan trial for new users
 	user := db.User{
 		Email:    body.Email,
 		Password: string(hash),
@@ -103,6 +88,10 @@ func Signup(c *gin.Context) {
 
 		TrafficUsed:  0,
 		TrafficLimit: 50 * 1000 * 1000 * 1000, // 50 GB for free trail
+
+		IsVerified:  false,
+		VerifyToken: uuid.New().String(),
+		TokenExpiry: time.Now().Add(24 * time.Hour), // token有效期24小时
 	}
 
 	result := db.DB.Create(&user)
@@ -117,8 +106,35 @@ func Signup(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{})
 }
 
+func VerifyEmail(c *gin.Context) {
+	token := c.Query("token")
+	if token == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Token is required"})
+		return
+	}
+
+	var user db.User
+	result := db.DB.First(&user, "verify_token = ?", token)
+	if result.Error != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid token"})
+		return
+	}
+
+	if user.TokenExpiry.Before(time.Now()) {
+		// delete the user if token expired and not verified
+		db.DB.Delete(&user)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Token expired, please sign up again"})
+		return
+	}
+
+	user.IsVerified = true
+	user.VerifyToken = ""
+	db.DB.Save(&user)
+
+	c.JSON(http.StatusOK, gin.H{"message": "Email verified successfully!"})
+}
+
 func Login(c *gin.Context) {
-	// Get email & pass off req body
 	var body struct {
 		Email    string
 		Password string
@@ -132,14 +148,19 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	// Look up for requested user
 	var user db.User
-
 	db.DB.First(&user, "email = ?", body.Email)
-
 	if user.ID == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "Invalid email or password",
+		})
+		return
+	}
+
+	// check if email is verified
+	if !user.IsVerified {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Email not verified, please click the link in the verification email",
 		})
 		return
 	}
@@ -192,6 +213,7 @@ func User(c *gin.Context) {
 		"next_renew":    userinfo.NextRenew.Format(time.RFC3339),
 		"traffic_used":  userinfo.TrafficUsed,
 		"traffic_limit": userinfo.TrafficLimit,
+		"balance":       userinfo.Balance,
 	})
 }
 

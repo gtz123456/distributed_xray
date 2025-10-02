@@ -98,6 +98,11 @@ func main() {
 
 	r := gin.Default()
 	r.Use(CORSMiddleware())
+
+	globalLimiter := middleware.NewRateLimiter(10, time.Minute) // 10 requests per minute per IP
+	globalLimiter.StartCleanup(10 * time.Minute)                // clear old ips every 10 minutes
+	r.Use(globalLimiter.Middleware())
+
 	r.POST("/signup", controllers.Signup)
 	r.POST("/login", controllers.Login)
 	r.GET("/user", middleware.RequireAuth, controllers.User)

@@ -23,4 +23,9 @@ type User struct {
 
 	ReferralCode string
 	Balance      int // in cents
+
+	// email verification
+	IsVerified  bool
+	VerifyToken string
+	TokenExpiry time.Time
 }
