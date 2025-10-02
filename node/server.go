@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"go-distributed/registry"
+	"go-distributed/utils"
 	"io"
 	"log"
 	"math/rand"
@@ -134,6 +135,12 @@ func (sh *nodeHandler) handleConnect(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !allowed {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	regkey := r.Header.Get("regKey")
+	if regkey != utils.Regkey() {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}

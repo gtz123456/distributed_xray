@@ -3,6 +3,7 @@ package controllers
 import (
 	"encoding/json"
 	"go-distributed/registry"
+	"go-distributed/utils"
 	"go-distributed/web/db"
 	"go-distributed/web/email"
 	"io"
@@ -110,34 +111,6 @@ func Signup(c *gin.Context) {
 
 	// Respond
 	c.JSON(http.StatusOK, gin.H{})
-}
-
-func VerifyEmail(c *gin.Context) {
-	token := c.Query("token")
-	if token == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Token is required"})
-		return
-	}
-
-	var user db.User
-	result := db.DB.First(&user, "verify_token = ?", token)
-	if result.Error != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid token"})
-		return
-	}
-
-	if user.TokenExpiry.Before(time.Now()) {
-		// delete the user if token expired and not verified
-		db.DB.Delete(&user)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Token expired, please sign up again"})
-		return
-	}
-
-	user.IsVerified = true
-	user.VerifyToken = ""
-	db.DB.Save(&user)
-
-	c.JSON(http.StatusOK, gin.H{"message": "Email verified successfully!"})
 }
 
 func Login(c *gin.Context) {
@@ -357,7 +330,7 @@ func Connect(c *gin.Context) {
 	apiEndpoint := server.PublicIP + ":" + os.Getenv("Node_Port")
 
 	client := &http.Client{}
-	req, err := http.NewRequest("GET", "http://"+apiEndpoint+"/connect?uuid="+uuid+"&email="+email+"&clientip="+clientIP+"&rate="+strconv.Itoa(rate)+"&burst="+strconv.Itoa(rate), nil)
+	req, err := http.NewRequest("GET", "http://"+apiEndpoint+"/connect?uuid="+uuid+"&email="+email+"&clientip="+clientIP+"&rate="+strconv.Itoa(rate)+"&burst="+strconv.Itoa(rate)+"&regkey="+utils.Regkey(), nil)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "Failed to create request to node service",
