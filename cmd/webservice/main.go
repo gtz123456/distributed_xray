@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 	"go-distributed/log"
-	"go-distributed/payment/db"
 	"go-distributed/registry"
 	"go-distributed/service"
 	"go-distributed/utils"
 	"go-distributed/web/controllers"
+	"go-distributed/web/db"
 	"go-distributed/web/middleware"
 	stlog "log"
 	"math/rand"
@@ -104,6 +104,7 @@ func main() {
 	r.Use(globalLimiter.Middleware())
 
 	r.POST("/signup", controllers.Signup)
+	r.POST("/verify", controllers.VerifyEmail)
 	r.POST("/login", controllers.Login)
 	r.GET("/user", middleware.RequireAuth, controllers.User)
 	r.GET("/realitykey", middleware.RequireAuth, controllers.Realitykey)
