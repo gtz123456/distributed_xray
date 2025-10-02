@@ -5,6 +5,7 @@ package order
 
 import (
 	"go-distributed/payment/db"
+	"go-distributed/utils"
 	"time"
 )
 
@@ -17,6 +18,8 @@ var orderMap = make(map[string]*db.Order) // Order ID → Order
 // TODO: replace with persistent storage eg. Redis
 
 func init() {
+	utils.LoadEnv()
+
 	db.Connect()
 	db.Sync()
 
