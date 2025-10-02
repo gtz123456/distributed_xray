@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"go-distributed/log"
+	"go-distributed/payment/db"
 	"go-distributed/registry"
 	"go-distributed/service"
 	"go-distributed/utils"
@@ -16,6 +17,12 @@ import (
 
 	"github.com/gin-gonic/gin"
 )
+
+func init() {
+	utils.LoadEnv()
+	db.Connect()
+	db.Sync()
+}
 
 func CORSMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
