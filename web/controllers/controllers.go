@@ -81,7 +81,7 @@ func Signup(c *gin.Context) {
 		Email:    body.Email,
 		Password: string(hash),
 		UUID:     UUID,
-		Plan:     "Premium plan",
+		Plan:     "Free plan",
 		PlanEnd:  time.Now().Add(100 * 12 * 31 * 24 * time.Hour),
 
 		RenewCycle: 31 * 24 * time.Hour, // renew every 31 days
@@ -92,7 +92,7 @@ func Signup(c *gin.Context) {
 
 		IsVerified:  false,
 		VerifyToken: uuid.New().String(),
-		TokenExpiry: time.Now().Add(24 * time.Hour), // token有效期24小时
+		TokenExpiry: time.Now().Add(24 * time.Hour), // token valid for 24 hours
 	}
 
 	result := db.DB.Create(&user)
