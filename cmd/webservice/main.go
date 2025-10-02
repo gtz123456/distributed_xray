@@ -104,7 +104,7 @@ func main() {
 	r.Use(globalLimiter.Middleware())
 
 	r.POST("/signup", controllers.Signup)
-	r.POST("/verify", controllers.VerifyEmail)
+	r.GET("/verify", controllers.VerifyEmail)
 	r.POST("/login", controllers.Login)
 	r.GET("/user", middleware.RequireAuth, controllers.User)
 	r.GET("/realitykey", middleware.RequireAuth, controllers.Realitykey)
