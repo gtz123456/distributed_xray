@@ -15,7 +15,7 @@ type User struct {
 	Plan    string
 	PlanEnd time.Time
 
-	RenewCycle time.Duration // renew every X days
+	RenewCycle int64 // in seconds
 	NextRenew  time.Time
 
 	TrafficUsed  int // in Bytes

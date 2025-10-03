@@ -85,7 +85,7 @@ func Signup(c *gin.Context) {
 		Plan:     "Free plan",
 		PlanEnd:  time.Now().Add(100 * 12 * 31 * 24 * time.Hour),
 
-		RenewCycle: 31 * 24 * time.Hour, // renew every 31 days
+		RenewCycle: int64(31 * 24 * time.Hour), // renew every 31 days
 		NextRenew:  time.Now().Add(31 * 24 * time.Hour),
 
 		TrafficUsed:  0,
@@ -190,7 +190,7 @@ func User(c *gin.Context) {
 		"uuid":          userinfo.UUID,
 		"plan":          userinfo.Plan,
 		"plan_end":      userinfo.PlanEnd.Format(time.RFC3339),
-		"renew_cycle":   userinfo.RenewCycle.String(),
+		"renew_cycle":   strconv.FormatInt(userinfo.RenewCycle, 10),
 		"next_renew":    userinfo.NextRenew.Format(time.RFC3339),
 		"traffic_used":  userinfo.TrafficUsed,
 		"traffic_limit": userinfo.TrafficLimit,

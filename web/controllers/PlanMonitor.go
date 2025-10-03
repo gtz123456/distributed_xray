@@ -27,7 +27,7 @@ func StartPlanMonitor() {
 			// Reset TrafficUsed for each user
 			for i := range users {
 				users[i].TrafficUsed = 0
-				users[i].NextRenew = users[i].NextRenew.Add(users[i].RenewCycle) // Update NextRenew to the next cycle
+				users[i].NextRenew = users[i].NextRenew.Add(time.Duration(users[i].RenewCycle) * time.Second) // Update NextRenew to the next cycle, RenewCycle is in seconds
 			}
 
 			for i := range users {
