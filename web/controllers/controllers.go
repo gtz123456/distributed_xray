@@ -522,7 +522,7 @@ func Subscribe(c *gin.Context) {
 	price := 300                   // TODO: get plan price from env
 	amount := price * req.Duration // in cents
 
-	if err := db.DB.First(&user, "uuid = ?", userinfo.UUID).Error; err != nil {
+	if err := db.DB.First(&userinfo, "uuid = ?", userinfo.UUID).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{
 			"error": "User not found",
 		})
