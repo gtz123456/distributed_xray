@@ -490,9 +490,26 @@ func AddTraffic(c *gin.Context) {
 
 func Subscribe(c *gin.Context) {
 	var req struct {
-		UUID     string `json:"uuid"`
 		Plan     string `json:"plan"`
 		Duration int    `json:"duration"` // in months
+	}
+
+	user, ok := c.Get("user")
+
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Failed to get user ID",
+		})
+		return
+	}
+
+	userinfo := user.(db.User)
+
+	if userinfo.UUID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Failed to get user UUID",
+		})
+		return
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -505,8 +522,7 @@ func Subscribe(c *gin.Context) {
 	price := 300                   // TODO: get plan price from env
 	amount := price * req.Duration // in cents
 
-	var user db.User
-	if err := db.DB.First(&user, "uuid = ?", req.UUID).Error; err != nil {
+	if err := db.DB.First(&user, "uuid = ?", userinfo.UUID).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{
 			"error": "User not found",
 		})
@@ -514,7 +530,7 @@ func Subscribe(c *gin.Context) {
 	}
 
 	// Check if user has enough balance
-	if user.Balance < amount {
+	if userinfo.Balance < amount {
 		c.JSON(http.StatusPaymentRequired, gin.H{
 			"error": "Insufficient balance",
 		})
@@ -528,17 +544,17 @@ func Subscribe(c *gin.Context) {
 		return
 	}
 
-	user.Balance -= amount
-	if user.Plan == "Free plan" { // upgrade from free plan
-		user.TrafficUsed = 0 // reset traffic
-		user.PlanEnd = time.Now().AddDate(0, req.Duration*31, 0)
+	userinfo.Balance -= amount
+	if userinfo.Plan == "Free plan" { // upgrade from free plan
+		userinfo.TrafficUsed = 0 // reset traffic
+		userinfo.PlanEnd = time.Now().AddDate(0, req.Duration*31, 0)
 	} else { // extend premium plan
 		// TODO: reset traffic used when renewing premium plan ?
-		user.PlanEnd = user.PlanEnd.AddDate(0, req.Duration*31, 0)
+		userinfo.PlanEnd = userinfo.PlanEnd.AddDate(0, req.Duration*31, 0)
 	}
-	user.Plan = req.Plan
-	user.TrafficLimit = 200 * 1000 * 1000 * 1000 // 200 GB for premium plan
-	db.DB.Save(&user)
+	userinfo.Plan = req.Plan
+	userinfo.TrafficLimit = 200 * 1000 * 1000 * 1000 // 200 GB for premium plan
+	db.DB.Save(&userinfo)
 
 	// Subscribe the user to the service
 	c.JSON(http.StatusOK, gin.H{
