@@ -102,6 +102,8 @@ func Signup(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "Failed to create user." + result.Error.Error(),
 		})
+
+		return
 	}
 
 	// send verification email
@@ -519,7 +521,7 @@ func Subscribe(c *gin.Context) {
 		return
 	}
 
-	if req.Plan != "Premium plan" && req.Plan != "Free plan" {
+	if req.Plan != "Premium plan" {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "Invalid plan",
 		})
@@ -527,8 +529,15 @@ func Subscribe(c *gin.Context) {
 	}
 
 	user.Balance -= amount
+	if user.Plan == "Free plan" { // upgrade from free plan
+		user.TrafficUsed = 0 // reset traffic
+		user.PlanEnd = time.Now().AddDate(0, req.Duration*31, 0)
+	} else { // extend premium plan
+		// TODO: reset traffic used when renewing premium plan ?
+		user.PlanEnd = user.PlanEnd.AddDate(0, req.Duration*31, 0)
+	}
 	user.Plan = req.Plan
-	user.PlanEnd = user.PlanEnd.AddDate(0, req.Duration*30, 0) // extend plan end by duration months
+	user.TrafficLimit = 200 * 1000 * 1000 * 1000 // 200 GB for premium plan
 	db.DB.Save(&user)
 
 	// Subscribe the user to the service

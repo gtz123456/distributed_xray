@@ -110,6 +110,7 @@ func main() {
 	r.GET("/servers", globalLimiter.Middleware(), middleware.RequireAuth, controllers.Servers)
 	r.GET("/version", globalLimiter.Middleware(), controllers.Version)
 	r.POST("/connect", globalLimiter.Middleware(), middleware.RequireAuth, controllers.Connect)
+	r.POST("/subscribe", globalLimiter.Middleware(), middleware.RequireAuth, controllers.Subscribe)
 
 	r.POST("/heartbeat", middleware.RequireAuth, controllers.HeartbeatFromClient)
 	r.POST("/traffic", controllers.AddTraffic)
