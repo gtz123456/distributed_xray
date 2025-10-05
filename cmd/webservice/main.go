@@ -112,7 +112,7 @@ func main() {
 	r.POST("/connect", globalLimiter.Middleware(), middleware.RequireAuth, controllers.Connect)
 	r.POST("/subscribe", globalLimiter.Middleware(), middleware.RequireAuth, controllers.Subscribe)
 	r.POST("/payment", globalLimiter.Middleware(), middleware.RequireAuth, controllers.Payment)
-	r.POST("/redeem", globalLimiter.Middleware(), controllers.Redeem)
+	r.POST("/redeem", globalLimiter.Middleware(), middleware.RequireAuth, controllers.Redeem)
 
 	r.POST("/heartbeat", middleware.RequireAuth, controllers.HeartbeatFromClient)
 	r.POST("/traffic", controllers.AddTraffic)
