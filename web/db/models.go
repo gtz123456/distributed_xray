@@ -29,3 +29,25 @@ type User struct {
 	VerifyToken string
 	TokenExpiry time.Time
 }
+
+type Voucher struct {
+	gorm.Model
+	Code string `gorm:"uniqueIndex"` // Redemption code
+	Type string // "balance" or "plan"
+
+	// Common fields
+	Description string
+	ExpiresAt   time.Time // Expiration time
+
+	// Balance voucher fields
+	Amount int // Unit: cents, only valid when type == "balance"
+
+	// Plan voucher fields
+	PlanName     string
+	PlanDuration int // in months
+
+	// Usage status
+	RedeemedBy uint // User ID
+	RedeemedAt *time.Time
+	IsUsed     bool
+}
