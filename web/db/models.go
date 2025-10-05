@@ -32,7 +32,7 @@ type User struct {
 
 type Voucher struct {
 	gorm.Model
-	Code string `gorm:"uniqueIndex"` // Redemption code
+	Code string `gorm:"type:varchar(191);uniqueIndex"` // Redemption code
 	Type string // "balance" or "plan"
 
 	// Common fields
