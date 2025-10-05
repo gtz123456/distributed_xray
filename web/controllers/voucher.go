@@ -91,12 +91,16 @@ func Redeem(c *gin.Context) {
 		c.JSON(400, gin.H{"error": "Invalid request"})
 		return
 	}
-	userID, exists := c.Get("userID")
-	if !exists {
+
+	user, ok := c.Get("user")
+	if !ok {
 		c.JSON(401, gin.H{"error": "Unauthorized"})
 		return
 	}
-	if err := RedeemVoucher(userID.(uint), req.Code); err != nil {
+
+	userinfo := user.(db.User)
+
+	if err := RedeemVoucher(userinfo.ID, req.Code); err != nil {
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
