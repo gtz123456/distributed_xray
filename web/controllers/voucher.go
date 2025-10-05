@@ -108,7 +108,7 @@ func Redeem(c *gin.Context) {
 }
 
 func GenerateVoucher(c *gin.Context) {
-	regkey := c.Param("regkey")
+	regkey := c.Query("regkey")
 	if regkey != utils.Regkey() {
 		c.JSON(403, gin.H{
 			"error": "Invalid registration key",
