@@ -93,21 +93,21 @@ func UpdateOrderStatus() {
 				if order.Callback != "" {
 					regkey := utils.Regkey()
 					callbackUrl := fmt.Sprintf("%s?order_id=%s&regkey=%s", order.Callback, order.ID, regkey)
-					resp, err := http.Get(callbackUrl)
+					callbackResp, err := http.Post(callbackUrl, "application/json", nil)
 					if err != nil {
 						log.Println("Error calling callback URL:", err)
 						order.Status = "callback_failed"
 						db.DB.Model(&db.Order{}).Where("id = ?", order.ID).Update("status", "callback_failed")
 						continue
 					}
-					if resp.StatusCode != http.StatusOK {
-						log.Println("Callback URL returned non-200 status:", resp.StatusCode)
+					if callbackResp.StatusCode != http.StatusOK {
+						log.Println("Callback URL returned non-200 status:", callbackResp.StatusCode)
 						order.Status = "callback_failed"
 						db.DB.Model(&db.Order{}).Where("id = ?", order.ID).Update("status", "callback_failed")
-						resp.Body.Close()
+						callbackResp.Body.Close()
 						continue
 					}
-					resp.Body.Close()
+					callbackResp.Body.Close()
 				}
 			}
 		}
