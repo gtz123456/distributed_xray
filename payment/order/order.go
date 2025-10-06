@@ -4,6 +4,7 @@
 package order
 
 import (
+	"errors"
 	"go-distributed/payment/db"
 	"go-distributed/utils"
 	"time"
@@ -30,15 +31,25 @@ func init() {
 }
 
 // find minimal actual amount for the given amount
-func mapAmountToActualAmount(amount int) (int, error) {
+func mapAmountToActualAmount(amount int64) (int64, error) {
 	actualAmount := intervalSet.NextMissing(amount) // convert to int
 	intervalSet.Add(actualAmount)                   // add to the interval set
 	return actualAmount, nil
 }
 
-func CreateOrder(id string, amount int, callback string) (db.Order, error) {
-	actualAmount, err := mapAmountToActualAmount(amount)
+func CreateOrder(id string, amount int64, callback, method, currency string) (db.Order, error) {
+	if method != "TRX" {
+		return db.Order{}, errors.New("unsupported payment method")
+	}
+	// TODO: support more payment methods
 
+	trxAmount, err := Convert(float64(amount)/100, "USD", currency) // convert USD to TRX
+
+	if err != nil {
+		return db.Order{}, err
+	}
+
+	actualAmount, err := mapAmountToActualAmount(int64(trxAmount * 1000000)) // convert to sun
 	if err != nil {
 		return db.Order{}, err
 	}
@@ -47,10 +58,12 @@ func CreateOrder(id string, amount int, callback string) (db.Order, error) {
 		ID:           id,
 		TrxAddress:   defaultWalletAddress,
 		Amount:       amount,
+		Currency:     currency,
 		ActualAmount: actualAmount,
 		Status:       "pending",
 		CreatedAt:    time.Now(),
 		Callback:     callback,
+		Method:       method,
 	}
 
 	result := db.DB.Create(&order)

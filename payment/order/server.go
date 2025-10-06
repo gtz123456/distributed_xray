@@ -62,13 +62,15 @@ func (ph *payHandler) handleCreateOrder(w http.ResponseWriter, r *http.Request) 
 	id := r.URL.Query().Get("order_id")
 	amount := r.URL.Query().Get("amount")
 	callback := r.URL.Query().Get("callback")
+	method := r.URL.Query().Get("method")
+	currency := r.URL.Query().Get("currency")
 
 	amountInt, err := strconv.ParseInt(amount, 10, 64)
 	if err != nil {
 		http.Error(w, "Invalid amount", http.StatusBadRequest)
 		return
 	}
-	order, err := CreateOrder(id, int(amountInt)*1000000, callback)
+	order, err := CreateOrder(id, amountInt, callback, method, currency)
 
 	if err != nil {
 		http.Error(w, "Failed to create order", http.StatusInternalServerError)

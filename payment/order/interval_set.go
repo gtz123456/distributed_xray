@@ -9,7 +9,7 @@ import (
 // we use a B-tree to store the intervals of consecutive integers in the set
 
 type interval struct {
-	l, r int
+	l, r int64
 }
 
 func (a interval) Less(b btree.Item) bool {
@@ -27,7 +27,7 @@ func NewIntervalSet() *IntervalSet {
 }
 
 // Add a number to the set
-func (s *IntervalSet) Add(x int) {
+func (s *IntervalSet) Add(x int64) {
 	iv := interval{x, x}
 	// Find the largest interval <= x
 	var prev *interval
@@ -88,7 +88,7 @@ func (s *IntervalSet) Add(x int) {
 }
 
 // Remove a number from the set
-func (s *IntervalSet) Remove(x int) {
+func (s *IntervalSet) Remove(x int64) {
 	iv := interval{x, x}
 	var target *interval
 	s.tree.DescendLessOrEqual(iv, func(it btree.Item) bool {
@@ -111,9 +111,9 @@ func (s *IntervalSet) Remove(x int) {
 }
 
 // NextMissing returns the smallest integer >= x that is not in the set
-func (s *IntervalSet) NextMissing(x int) int {
+func (s *IntervalSet) NextMissing(x int64) int64 {
 	iv := interval{x, x}
-	var res int
+	var res int64
 	found := false
 	s.tree.DescendLessOrEqual(iv, func(it btree.Item) bool {
 		p := it.(interval)

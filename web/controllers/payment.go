@@ -55,7 +55,7 @@ func Payment(c *gin.Context) {
 		c.JSON(500, gin.H{"error": "Failed to get public IP"})
 		return
 	}
-	request, err := http.NewRequest("POST", addr+"/api/payment/order/create?order_id="+orderid+"&amount="+strconv.Itoa(req.Amount)+"&callback="+publicIP+":"+os.Getenv("GIN_PORT")+"/payment/callback", nil)
+	request, err := http.NewRequest("POST", addr+"/api/payment/order/create?order_id="+orderid+"&amount="+strconv.Itoa(req.Amount)+"&callback="+publicIP+":"+os.Getenv("GIN_PORT")+"/payment/callback"+"&method="+req.Method+"&currency="+req.Currency, nil)
 	if err != nil {
 		c.JSON(500, gin.H{"error": "Failed to create payment request"})
 		return
@@ -74,10 +74,20 @@ func Payment(c *gin.Context) {
 		c.JSON(500, gin.H{"error": "Failed to parse payment response"})
 		return
 	}
-	if trxAddress, ok := result["trx_address"].(string); ok {
-		c.JSON(200, gin.H{"message": "Payment submitted", "order_id": orderid, "trx_address": trxAddress})
+	if payment.Method == "TRX" {
+		if _, ok := result["trx_address"].(string); !ok {
+			c.JSON(500, gin.H{"error": "Invalid payment response"})
+		}
+		if _, ok := result["actual_amount"].(int); !ok {
+			c.JSON(500, gin.H{"error": "Invalid payment response"})
+		}
+
+		fmt.Println("Payment created:", result)
+		c.JSON(200, gin.H{"message": "Payment submitted", "order_id": orderid, "trx_address": result["trx_address"].(string), "actual_amount": result["actual_amount"].(int)})
+		return
 	}
 	// TODO: handle other payment methods
+	c.JSON(500, gin.H{"error": "Unsupported payment method"})
 }
 
 func Callback(c *gin.Context) {
