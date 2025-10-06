@@ -111,12 +111,12 @@ func main() {
 	r.GET("/version", globalLimiter.Middleware(), controllers.Version)
 	r.POST("/connect", globalLimiter.Middleware(), middleware.RequireAuth, controllers.Connect)
 	r.POST("/subscribe", globalLimiter.Middleware(), middleware.RequireAuth, controllers.Subscribe)
-	r.POST("/payment", globalLimiter.Middleware(), middleware.RequireAuth, controllers.Payment)
 	r.POST("/redeem", globalLimiter.Middleware(), middleware.RequireAuth, controllers.Redeem)
 
 	r.POST("/heartbeat", middleware.RequireAuth, controllers.HeartbeatFromClient)
 	r.POST("/traffic", controllers.AddTraffic)
 
+	r.POST("/payment", globalLimiter.Middleware(), middleware.RequireAuth, controllers.Payment)
 	r.GET("/payment/status/:order_id", globalLimiter.Middleware(), middleware.RequireAuth, controllers.GetPaymentStatus)
 	r.GET("/payment/list", globalLimiter.Middleware(), middleware.RequireAuth, controllers.ListPayments)
 	r.POST("/payment/callback", middleware.AdminAuth, controllers.Callback)

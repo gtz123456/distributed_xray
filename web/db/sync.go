@@ -1,5 +1,5 @@
 package db
 
 func Sync() {
-	DB.AutoMigrate(&User{}, &Voucher{})
+	DB.AutoMigrate(&User{}, &Voucher{}, &Payment{})
 }
