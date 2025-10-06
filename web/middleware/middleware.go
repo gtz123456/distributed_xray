@@ -52,3 +52,12 @@ func RequireAuth(c *gin.Context) {
 		c.AbortWithStatus(http.StatusUnauthorized)
 	}
 }
+
+func AdminAuth(c *gin.Context) {
+	regkey := c.Param("regkey")
+
+	if regkey != os.Getenv("REGKEY") {
+		c.AbortWithStatus(http.StatusUnauthorized)
+	}
+	c.Next()
+}

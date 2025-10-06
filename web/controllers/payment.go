@@ -1,10 +1,160 @@
 package controllers
 
-import "github.com/gin-gonic/gin"
+import (
+	"encoding/json"
+	"fmt"
+	"go-distributed/registry"
+	"go-distributed/utils"
+	"go-distributed/web/db"
+	"os"
+	"strconv"
+
+	"net/http"
+
+	"github.com/gin-gonic/gin"
+)
 
 func Payment(c *gin.Context) {
-	// Placeholder for payment processing logic
-	c.JSON(200, gin.H{
-		"message": "Payment endpoint - to be implemented",
-	})
+	var req struct {
+		Amount   int    `json:"amount"` // in cents
+		Currency string `json:"currency"`
+		Method   string `json:"method"`
+	}
+
+	if err := c.BindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": "Invalid request"})
+		return
+	}
+
+	// generate a uuid as order ID
+	orderid := utils.GenerateUUID()
+
+	payment := db.Payment{
+		OrderID:  orderid,
+		Amount:   req.Amount,
+		Currency: req.Currency,
+		Method:   req.Method,
+		Status:   "pending",
+	}
+
+	if err := db.DB.Create(&payment).Error; err != nil {
+		c.JSON(500, gin.H{"error": "Failed to create payment"})
+		return
+	}
+
+	paymentService, err := registry.GetProviders(registry.PaymentService)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Failed to get payment service"})
+		return
+	}
+
+	addr := paymentService[0].ServiceURL
+	client := &http.Client{}
+	publicIP, err := utils.GetPublicIP()
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Failed to get public IP"})
+		return
+	}
+	request, err := http.NewRequest("POST", addr+"/api/payment/order/create?order_id="+orderid+"&amount="+strconv.Itoa(req.Amount)+"&callback="+publicIP+":"+os.Getenv("GIN_PORT")+"/payment/callback", nil)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Failed to create payment request"})
+		return
+	}
+
+	resp, err := client.Do(request)
+	if err != nil || resp.StatusCode != 200 {
+		c.JSON(500, gin.H{"error": "Failed to process payment"})
+		return
+	}
+	defer resp.Body.Close()
+
+	// get response body as json
+	var result map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		c.JSON(500, gin.H{"error": "Failed to parse payment response"})
+		return
+	}
+	if trxAddress, ok := result["trx_address"].(string); ok {
+		c.JSON(200, gin.H{"message": "Payment submitted", "order_id": orderid, "trx_address": trxAddress})
+	}
+	// TODO: handle other payment methods
+}
+
+func Callback(c *gin.Context) {
+	orderID := c.Query("order_id")
+
+	var payment db.Payment
+	if err := db.DB.Where("order_id = ?", orderID).First(&payment).Error; err != nil {
+		c.JSON(404, gin.H{"error": "Payment not found"})
+		return
+	}
+
+	payment.Status = "paid"
+	db.DB.Save(&payment)
+	c.JSON(200, gin.H{"message": "Payment status updated"})
+}
+
+func updatePaymentStatus(orderID string) error {
+	paymentService, err := registry.GetProviders(registry.PaymentService)
+	if err != nil {
+		return err
+	}
+	addr := paymentService[0].ServiceURL
+	client := &http.Client{}
+	request, err := http.NewRequest("POST", addr+"/api/payment/order/status?order_id="+orderID, nil)
+	if err != nil {
+		return err
+	}
+
+	resp, err := client.Do(request)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return fmt.Errorf("failed to update payment status")
+	}
+
+	// Parse the response body as JSON and return the order info if needed
+	var result map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return fmt.Errorf("failed to parse response: %v", err)
+	}
+
+	if status, ok := result["status"].(string); ok {
+		if status == "paid" || status == "callback_failed" {
+			db.DB.Model(&db.Payment{}).Where("order_id = ?", orderID).Update("status", "paid")
+		}
+	}
+
+	return nil
+}
+
+func GetPaymentStatus(c *gin.Context) {
+	orderID := c.Param("order_id")
+
+	var payment db.Payment
+	if err := db.DB.Where("order_id = ?", orderID).First(&payment).Error; err != nil {
+		c.JSON(404, gin.H{"error": "Payment not found"})
+		return
+	}
+
+	c.JSON(200, gin.H{"order_id": payment.OrderID, "status": payment.Status})
+}
+
+func ListPayments(c *gin.Context) {
+	user, ok := c.Get("user")
+	if !ok {
+		c.JSON(401, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	var payments []db.Payment
+	if err := db.DB.Where("user_id = ?", user.(db.User).ID).Find(&payments).Error; err != nil {
+		c.JSON(500, gin.H{"error": "Failed to fetch payments"})
+		return
+	}
+
+	c.JSON(200, gin.H{"payments": payments})
 }

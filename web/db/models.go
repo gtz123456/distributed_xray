@@ -51,3 +51,12 @@ type Voucher struct {
 	RedeemedAt *time.Time
 	IsUsed     bool
 }
+
+type Payment struct {
+	gorm.Model
+	OrderID  string `gorm:"unique"`
+	Amount   int    // in cents
+	Currency string // e.g. "USD"
+	Method   string // e.g. "credit_card", "paypal"
+	Status   string // e.g. "pending", "paid", "failed"
+}

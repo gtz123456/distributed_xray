@@ -59,7 +59,7 @@ func (ph *payHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (ph *payHandler) handleCreateOrder(w http.ResponseWriter, r *http.Request) {
-	id := r.URL.Query().Get("id")
+	id := r.URL.Query().Get("order_id")
 	amount := r.URL.Query().Get("amount")
 	callback := r.URL.Query().Get("callback")
 
@@ -88,7 +88,7 @@ func (ph *payHandler) handleCreateOrder(w http.ResponseWriter, r *http.Request) 
 }
 
 func (ph *payHandler) handleGetOrderStatus(w http.ResponseWriter, r *http.Request) {
-	id := r.URL.Query().Get("id")
+	id := r.URL.Query().Get("order_id")
 	if id == "" {
 		http.Error(w, "Missing order ID", http.StatusBadRequest)
 		return

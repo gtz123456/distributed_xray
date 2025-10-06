@@ -116,9 +116,12 @@ func main() {
 
 	r.POST("/heartbeat", middleware.RequireAuth, controllers.HeartbeatFromClient)
 	r.POST("/traffic", controllers.AddTraffic)
-	// Admin routes
-	r.POST("/admin/setplan", controllers.SetPlan)
-	r.POST("/admin/generatevoucher", controllers.GenerateVoucher)
-	r.Run()
 
+	r.GET("/payment/status/:order_id", globalLimiter.Middleware(), middleware.RequireAuth, controllers.GetPaymentStatus)
+	r.GET("/payment/list", globalLimiter.Middleware(), middleware.RequireAuth, controllers.ListPayments)
+	r.POST("/payment/callback", middleware.AdminAuth, controllers.Callback)
+	// Admin routes
+	r.POST("/admin/setplan", middleware.AdminAuth, controllers.SetPlan)
+	r.POST("/admin/generatevoucher", middleware.AdminAuth, controllers.GenerateVoucher)
+	r.Run()
 }

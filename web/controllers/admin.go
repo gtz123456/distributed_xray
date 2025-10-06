@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"go-distributed/utils"
 	"go-distributed/web/db"
 	"time"
 
@@ -11,13 +10,6 @@ import (
 func SetPlan(c *gin.Context) {
 	uuid := c.Param("uuid")
 	plan := c.Param("plan")
-	regkey := c.Param("regkey")
-
-	if regkey != utils.Regkey() {
-		c.JSON(403, gin.H{
-			"error": "Invalid registration key",
-		})
-	}
 
 	user := db.User{}
 	err := db.DB.Model(&db.User{}).Where("uuid = ?", uuid).First(&user).Error

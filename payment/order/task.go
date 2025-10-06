@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"go-distributed/payment/db"
+	"go-distributed/utils"
 	"net/http"
 	"os"
 	"time"
@@ -86,22 +87,27 @@ func UpdateOrderStatus() {
 			if order.Status == "pending" {
 				order.Status = "paid"
 				intervalSet.Remove(order.ActualAmount)
+				delete(ActualAmountToID, amount)
 				db.DB.Model(&db.Order{}).Where("id = ?", order.ID).Update("status", "paid")
+
 				if order.Callback != "" {
-					callbackUrl := fmt.Sprintf("%s?id=%s", order.Callback, order.ID)
+					regkey := utils.Regkey()
+					callbackUrl := fmt.Sprintf("%s?order_id=%s&regkey=%s", order.Callback, order.ID, regkey)
 					resp, err := http.Get(callbackUrl)
 					if err != nil {
 						log.Println("Error calling callback URL:", err)
+						order.Status = "callback_failed"
+						db.DB.Model(&db.Order{}).Where("id = ?", order.ID).Update("status", "callback_failed")
 						continue
 					}
 					if resp.StatusCode != http.StatusOK {
 						log.Println("Callback URL returned non-200 status:", resp.StatusCode)
+						order.Status = "callback_failed"
+						db.DB.Model(&db.Order{}).Where("id = ?", order.ID).Update("status", "callback_failed")
 						resp.Body.Close()
 						continue
 					}
 					resp.Body.Close()
-
-					delete(ActualAmountToID, amount)
 				}
 			}
 		}
@@ -119,6 +125,35 @@ func RemoveTimeoutOrders() {
 			delete(orderMap, id)
 			delete(ActualAmountToID, int64(order.ActualAmount))
 			log.Println("Order timeout:", id)
+			if order.Status == "pending" {
+				order.Status = "expired"
+				db.DB.Model(&db.Order{}).Where("id = ?", order.ID).Update("status", "expired")
+			}
+		}
+	}
+}
+
+func RetryCallbackFailedOrders() {
+	for id, order := range orderMap {
+		if order.Status == "callback_failed" {
+			if order.Callback != "" {
+				regkey := utils.Regkey()
+				callbackUrl := fmt.Sprintf("%s?order_id=%s&regkey=%s", order.Callback, order.ID, regkey)
+				resp, err := http.Get(callbackUrl)
+				if err != nil {
+					log.Println("Error calling callback URL:", err)
+					continue
+				}
+				if resp.StatusCode != http.StatusOK {
+					log.Println("Callback URL returned non-200 status:", resp.StatusCode)
+					resp.Body.Close()
+					continue
+				}
+				resp.Body.Close()
+				order.Status = "paid"
+				db.DB.Model(&db.Order{}).Where("id = ?", order.ID).Update("status", "paid")
+				log.Println("Callback retried successfully for order:", id)
+			}
 		}
 	}
 }
