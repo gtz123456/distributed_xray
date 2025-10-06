@@ -67,7 +67,7 @@ func main() {
 		ServiceName:      registry.WebService,
 		ServiceURL:       fmt.Sprintf("http://%v:%v", host, GINPORT),
 		PublicIP:         publicIP,
-		RequiredServices: []registry.ServiceName{registry.NodeService, registry.LogService},
+		RequiredServices: []registry.ServiceName{registry.NodeService, registry.LogService, registry.PaymentService},
 		ServiceUpdateURL: serviceAddress + "/service",
 	}
 
