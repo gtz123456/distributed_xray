@@ -357,11 +357,11 @@ func StartTrafficReport() {
 					continue
 				}
 
-				GIN_Port := os.Getenv("PORT")
+				GIN_PORT := os.Getenv("GIN_PORT")
 				provider := providers[0] // TODO
 
 				go func(provider registry.Registration) {
-					url := fmt.Sprintf("http://%s:%s/traffic", provider.PublicIP, GIN_Port)
+					url := fmt.Sprintf("http://%s:%s/traffic", provider.PublicIP, GIN_PORT)
 					req, err := http.NewRequest("POST", url, bytes.NewBuffer(data))
 					if err != nil {
 						log.Println("Create request error:", err)

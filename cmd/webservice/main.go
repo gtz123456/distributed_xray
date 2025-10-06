@@ -50,7 +50,7 @@ func main() {
 		port = "80"
 	}
 
-	GINPORT := os.Getenv("GIN_Port")
+	GINPORT := os.Getenv("GIN_PORT")
 	if GINPORT == "" {
 		GINPORT = "8080"
 	}
