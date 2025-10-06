@@ -12,6 +12,7 @@ import (
 	"net/url"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm/clause"
 )
 
 func Payment(c *gin.Context) {
@@ -119,24 +120,38 @@ func Payment(c *gin.Context) {
 func Callback(c *gin.Context) {
 	orderID := c.Query("order_id")
 
+	tx := db.DB.Begin()
+
 	var payment db.Payment
-	if err := db.DB.Where("order_id = ?", orderID).First(&payment).Error; err != nil {
+	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where("order_id = ?", orderID).First(&payment).Error; err != nil {
+		tx.Rollback()
 		c.JSON(404, gin.H{"error": "Payment not found"})
 		return
 	}
 
+	// update payment status
 	payment.Status = "paid"
-	db.DB.Save(&payment)
-
-	userID := payment.UserID
-	var user db.User
-	if err := db.DB.First(&user, userID).Error; err != nil {
-		c.JSON(404, gin.H{"error": "User not found"})
+	if err := tx.Save(&payment).Error; err != nil {
+		tx.Rollback()
 		return
 	}
 
-	user.Balance += payment.Amount // TODO: consider currency
-	db.DB.Save(&user)
+	// update user balance
+	var user db.User
+	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+		First(&user, payment.UserID).Error; err != nil {
+		tx.Rollback()
+		return
+	}
+
+	user.Balance += payment.Amount
+	if err := tx.Save(&user).Error; err != nil {
+		tx.Rollback()
+		return
+	}
+
+	tx.Commit()
 
 	c.JSON(200, gin.H{"message": "Payment status updated"})
 }

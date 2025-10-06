@@ -83,13 +83,13 @@ func Signup(c *gin.Context) {
 		Password: string(hash),
 		UUID:     UUID,
 		Plan:     "Free plan",
-		PlanEnd:  time.Now().Add(100 * 12 * 31 * 24 * time.Hour),
+		PlanEnd:  time.Now().Add(1 * 12 * 31 * 24 * time.Hour),
 
 		RenewCycle: int64(31 * 24 * time.Hour), // renew every 31 days
 		NextRenew:  time.Now().Add(31 * 24 * time.Hour),
 
 		TrafficUsed:  0,
-		TrafficLimit: 50 * 1000 * 1000 * 1000, // 50 GB for free trail
+		TrafficLimit: 10 * 1000 * 1000 * 1000, // 10 GB for free trail
 
 		IsVerified:  false,
 		VerifyToken: uuid.New().String(),
