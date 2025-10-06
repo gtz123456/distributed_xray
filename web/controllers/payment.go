@@ -7,9 +7,9 @@ import (
 	"go-distributed/utils"
 	"go-distributed/web/db"
 	"os"
-	"strconv"
 
 	"net/http"
+	"net/url"
 
 	"github.com/gin-gonic/gin"
 )
@@ -55,7 +55,19 @@ func Payment(c *gin.Context) {
 		c.JSON(500, gin.H{"error": "Failed to get public IP"})
 		return
 	}
-	request, err := http.NewRequest("POST", addr+"/api/payment/order/create?order_id="+orderid+"&amount="+strconv.Itoa(req.Amount)+"&callback="+publicIP+":"+os.Getenv("GIN_PORT")+"/payment/callback"+"&method="+req.Method+"&currency="+req.Currency, nil)
+	callbackURL := fmt.Sprintf("http://%s:%s/payment/callback", publicIP, os.Getenv("GIN_PORT"))
+
+	reqURL := fmt.Sprintf("%s/api/payment/order/create?order_id=%s&amount=%d&callback=%s&method=%s&currency=%s",
+		addr,
+		orderid,
+		req.Amount,
+		url.QueryEscape(callbackURL),
+		req.Method,
+		req.Currency,
+	)
+
+	request, err := http.NewRequest("POST", reqURL, nil)
+
 	if err != nil {
 		c.JSON(500, gin.H{"error": "Failed to create payment request"})
 		return

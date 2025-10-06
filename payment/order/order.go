@@ -43,7 +43,7 @@ func CreateOrder(id string, amount int64, callback, method, currency string) (db
 	}
 	// TODO: support more payment methods
 
-	trxAmount, err := Convert(float64(amount), "USD", currency) // convert USD to TRX
+	trxAmount, err := Convert(float64(amount), currency, method) // convert USD to TRX
 
 	if err != nil {
 		return db.Order{}, err
