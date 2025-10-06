@@ -78,12 +78,18 @@ func Payment(c *gin.Context) {
 		if _, ok := result["trx_address"].(string); !ok {
 			c.JSON(500, gin.H{"error": "Invalid payment response"})
 		}
-		if _, ok := result["actual_amount"].(int); !ok {
-			c.JSON(500, gin.H{"error": "Invalid payment response"})
+
+		var actualAmount int64
+		if v, ok := result["actual_amount"].(float64); ok {
+			actualAmount = int64(v)
+		} else if v, ok := result["actual_amount"].(int64); ok {
+			actualAmount = v
+		} else {
+			actualAmount = 0
 		}
 
 		fmt.Println("Payment created:", result)
-		c.JSON(200, gin.H{"message": "Payment submitted", "order_id": orderid, "trx_address": result["trx_address"].(string), "actual_amount": result["actual_amount"].(int)})
+		c.JSON(200, gin.H{"message": "Payment submitted", "order_id": orderid, "trx_address": result["trx_address"].(string), "actual_amount": actualAmount})
 		return
 	}
 	// TODO: handle other payment methods
