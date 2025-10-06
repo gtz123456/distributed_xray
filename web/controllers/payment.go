@@ -15,6 +15,13 @@ import (
 )
 
 func Payment(c *gin.Context) {
+	user, ok := c.Get("user")
+	if !ok {
+		c.JSON(401, gin.H{"error": "Unauthorized"})
+		return
+	}
+	userinfo := user.(db.User)
+
 	var req struct {
 		Amount   int    `json:"amount"` // in cents
 		Currency string `json:"currency"`
@@ -31,6 +38,7 @@ func Payment(c *gin.Context) {
 
 	payment := db.Payment{
 		OrderID:  orderid,
+		UserID:   userinfo.ID,
 		Amount:   req.Amount,
 		Currency: req.Currency,
 		Method:   req.Method,
@@ -119,10 +127,21 @@ func Callback(c *gin.Context) {
 
 	payment.Status = "paid"
 	db.DB.Save(&payment)
+
+	userID := payment.UserID
+	var user db.User
+	if err := db.DB.First(&user, userID).Error; err != nil {
+		c.JSON(404, gin.H{"error": "User not found"})
+		return
+	}
+
+	user.Balance += payment.Amount // TODO: consider currency
+	db.DB.Save(&user)
+
 	c.JSON(200, gin.H{"message": "Payment status updated"})
 }
 
-func updatePaymentStatus(orderID string) error {
+func updatePaymentStatus(orderID string) error { // query payment service for orders that failed to callback
 	paymentService, err := registry.GetProviders(registry.PaymentService)
 	if err != nil {
 		return err

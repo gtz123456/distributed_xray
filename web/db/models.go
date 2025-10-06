@@ -55,6 +55,7 @@ type Voucher struct {
 type Payment struct {
 	gorm.Model
 	OrderID  string `gorm:"unique"`
+	UserID   uint
 	Amount   int    // in cents
 	Currency string // e.g. "USD"
 	Method   string // e.g. "credit_card", "paypal"
