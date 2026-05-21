@@ -5,7 +5,6 @@ import (
 	"go-distributed/registry"
 	"go-distributed/utils"
 	"go-distributed/web/db"
-	"go-distributed/web/email"
 	"io"
 	"net/http"
 	"os"
@@ -91,9 +90,7 @@ func Signup(c *gin.Context) {
 		TrafficUsed:  0,
 		TrafficLimit: 10 * 1000 * 1000 * 1000, // 10 GB for free trail
 
-		IsVerified:  false,
-		VerifyToken: uuid.New().String(),
-		TokenExpiry: time.Now().Add(24 * time.Hour), // token valid for 24 hours
+		IsVerified:  true,
 	}
 
 	result := db.DB.Create(&user)
@@ -105,11 +102,6 @@ func Signup(c *gin.Context) {
 
 		return
 	}
-
-	// send verification email
-	go func() {
-		email.SendVerificationEmail(user.Email, user.VerifyToken)
-	}()
 
 	// Respond
 	c.JSON(http.StatusOK, gin.H{})
