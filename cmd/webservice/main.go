@@ -123,5 +123,5 @@ func main() {
 	// Admin routes
 	r.POST("/admin/setplan", middleware.AdminAuth, controllers.SetPlan)
 	r.POST("/admin/generatevoucher", middleware.AdminAuth, controllers.GenerateVoucher)
-	r.Run()
+	r.Run(":" + GINPORT)
 }
