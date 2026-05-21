@@ -62,7 +62,7 @@ func VerifyEmail(c *gin.Context) {
 		return
 	}
 
-	if user.TokenExpiry.Before(time.Now()) {
+	if user.TokenExpiry != nil && user.TokenExpiry.Before(time.Now()) {
 		db.DB.Delete(&user)
 		c.Data(http.StatusBadRequest, "text/html; charset=utf-8", []byte(`
 <!DOCTYPE html>

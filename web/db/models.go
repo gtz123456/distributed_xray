@@ -27,7 +27,7 @@ type User struct {
 	// email verification
 	IsVerified  bool
 	VerifyToken string
-	TokenExpiry time.Time
+	TokenExpiry *time.Time
 }
 
 type Voucher struct {
