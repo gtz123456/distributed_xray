@@ -3,10 +3,10 @@ package controllers
 import (
 	"errors"
 	"fmt"
-	"time"
-
 	"go-distributed/utils"
 	"go-distributed/web/db"
+	"os"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -108,8 +108,8 @@ func Redeem(c *gin.Context) {
 }
 
 func GenerateVoucher(c *gin.Context) {
-	regkey := c.Query("regkey")
-	if regkey != utils.Regkey() {
+	regkey := c.GetHeader("regkey")
+	if regkey != utils.Regkey() && regkey != os.Getenv("REGKEY") {
 		c.JSON(403, gin.H{
 			"error": "Invalid registration key",
 		})

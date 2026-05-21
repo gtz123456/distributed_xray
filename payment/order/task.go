@@ -92,8 +92,17 @@ func UpdateOrderStatus() {
 
 				if order.Callback != "" {
 					regkey := utils.Regkey()
-					callbackUrl := fmt.Sprintf("%s?order_id=%s&regkey=%s", order.Callback, order.ID, regkey)
-					callbackResp, err := http.Post(callbackUrl, "application/json", nil)
+					callbackUrl := fmt.Sprintf("%s?order_id=%s", order.Callback, order.ID)
+					req, err := http.NewRequest("POST", callbackUrl, nil)
+					if err != nil {
+						log.Println("Error creating callback request:", err)
+						order.Status = "callback_failed"
+						db.DB.Model(&db.Order{}).Where("id = ?", order.ID).Update("status", "callback_failed")
+						continue
+					}
+					req.Header.Set("regkey", regkey)
+					client := &http.Client{}
+					callbackResp, err := client.Do(req)
 					if err != nil {
 						log.Println("Error calling callback URL:", err)
 						order.Status = "callback_failed"
@@ -138,8 +147,15 @@ func RetryCallbackFailedOrders() {
 		if order.Status == "callback_failed" {
 			if order.Callback != "" {
 				regkey := utils.Regkey()
-				callbackUrl := fmt.Sprintf("%s?order_id=%s&regkey=%s", order.Callback, order.ID, regkey)
-				resp, err := http.Get(callbackUrl)
+				callbackUrl := fmt.Sprintf("%s?order_id=%s", order.Callback, order.ID)
+				req, err := http.NewRequest("POST", callbackUrl, nil)
+				if err != nil {
+					log.Println("Error creating callback retry request:", err)
+					continue
+				}
+				req.Header.Set("regkey", regkey)
+				client := &http.Client{}
+				resp, err := client.Do(req)
 				if err != nil {
 					log.Println("Error calling callback URL:", err)
 					continue

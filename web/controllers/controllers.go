@@ -324,13 +324,14 @@ func Connect(c *gin.Context) {
 	apiEndpoint := server.PublicIP + ":" + os.Getenv("Node_Port")
 
 	client := &http.Client{}
-	req, err := http.NewRequest("GET", "http://"+apiEndpoint+"/connect?uuid="+uuid+"&email="+email+"&clientip="+clientIP+"&rate="+strconv.Itoa(rate)+"&burst="+strconv.Itoa(rate)+"&regkey="+utils.Regkey(), nil)
+	req, err := http.NewRequest("GET", "http://"+apiEndpoint+"/connect?uuid="+uuid+"&email="+email+"&clientip="+clientIP+"&rate="+strconv.Itoa(rate)+"&burst="+strconv.Itoa(rate), nil)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "Failed to create request to node service",
 		})
 		return
 	}
+	req.Header.Set("regkey", utils.Regkey())
 
 	resp, err := client.Do(req)
 	if err != nil {

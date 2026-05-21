@@ -54,10 +54,27 @@ func RequireAuth(c *gin.Context) {
 }
 
 func AdminAuth(c *gin.Context) {
-	regkey := c.Param("regkey")
+	regkey := c.GetHeader("regkey")
 
-	if regkey != os.Getenv("REGKEY") {
+	expectedAdminKey := os.Getenv("REGKEY")
+	expectedInterServiceKey := os.Getenv("regkey")
+
+	if regkey == "" {
 		c.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+
+	matched := false
+	if expectedAdminKey != "" && regkey == expectedAdminKey {
+		matched = true
+	}
+	if expectedInterServiceKey != "" && regkey == expectedInterServiceKey {
+		matched = true
+	}
+
+	if !matched {
+		c.AbortWithStatus(http.StatusUnauthorized)
+		return
 	}
 	c.Next()
 }
