@@ -124,7 +124,7 @@ cp .env.template .env
 ### Prerequisites
 1. **Go Environment**: Version `>= 1.23.1`.
 2. **Database**: MySQL server running and accessible.
-3. **Xray Binaries**: Pre-compiled `xray` binary downloaded and placed in `./app/bin/` and `./node/bin/`.
+3. **IP route**: If nodes run on the same server, packages sent to the server's public IP may not be routed to localhost. Run `sudo ip route add local <YOUR PUBLIC IP> dev <YOUR  eg eth>`
 4. **Firewall**: Ensure the port ranges `8000-8006` and client proxy ports `10000-60000` are open in your server firewall rules.
 
 ### Option 1: Run as Binaries directly on Host
