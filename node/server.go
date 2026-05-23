@@ -175,11 +175,12 @@ func (sh *nodeHandler) handleConnect(w http.ResponseWriter, r *http.Request) {
 	xrayCtl = new(XrayController)
 	err = xrayCtl.Init(cfg)
 
-	defer xrayCtl.CmdConn.Close()
 	if err != nil {
 		log.Printf("Failed to initialize Xray controller: %s", err)
 		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
+	defer xrayCtl.CmdConn.Close()
 
 	userInfo := &UserInfo{
 		Uuid:  uuid,
