@@ -36,7 +36,7 @@ var (
 	xrayCtl *XrayController
 	cfg     = &BaseConfig{
 		APIAddress: "127.0.0.1",
-		APIPort:    8080,
+		APIPort:    9000,
 	}
 	connections     = make(map[string]int) // uuid: port
 	proxyServices   = make(map[string]*ProxyService)
