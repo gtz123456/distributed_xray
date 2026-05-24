@@ -219,3 +219,20 @@ kubectl apply -f k8s/logservice-deployment.yaml
 kubectl apply -f k8s/nodeservice-deployment.yaml
 kubectl apply -f k8s/webservice-deployment.yaml
 ```
+
+---
+
+### Option 4: Testing the Project
+
+The project includes comprehensive unit and integration tests covering the core architecture. It uses `sqlite` and `miniredis` to emulate database and caching environments locally, making the tests totally clean and detached from local services.
+
+1. **Install Test Dependencies**:
+   ```bash
+   go get -t github.com/stretchr/testify github.com/alicebob/miniredis/v2 gorm.io/driver/sqlite
+   ```
+
+2. **Run Tests with Race Detector**:
+   ```bash
+   # Tests concurrent locks, Redis expirations, SQL parsing, and JWT state machines
+   TEST_MODE=1 go test -v -race ./...
+   ```
