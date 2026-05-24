@@ -139,7 +139,7 @@ func (sh *nodeHandler) handleConnect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	regkey := r.Header.Get("regKey")
+	regkey := r.Header.Get("regkey")
 	if regkey != utils.Regkey() {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
