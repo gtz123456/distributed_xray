@@ -174,40 +174,56 @@ cp .env.template .env
    ```
 
 2. **Run Containers**:
+   To ensure all containers can resolve each other by name, first create a dedicated Docker network:
    ```bash
-   # MySQL Database Container
+   docker network create vpn-net
+   ```
+
+   ```bash
+   # 1. MySQL Database Container
    docker run -d \
      --name mysql-server \
+     --network vpn-net \
      -p 3306:3306 \
      -v /my/own/datadir:/var/lib/mysql \
      -e MYSQL_ROOT_PASSWORD='gcB710.fR+z]' \
      mysql:latest
 
-   # Redis Cache Container
+   # 2. Redis Cache Container
    docker run -d \
      --name redis-server \
+     --network vpn-net \
      -p 6379:6379 \
      -v /my/own/redisdata:/data \
      redis:latest redis-server --appendonly yes
 
-   # Registry Discovery Container
-   docker run -itd --name regservice -p 8000:8000 regservice
+   # 3. Registry Discovery Container
+   docker run -itd --name regservice --network vpn-net -p 8000:8000 regservice
 
-   # Log Aggregator Container
-   docker run -itd --name logservice -p 8001:8001 -e "Registry_IP=regservice" logservice
+   # 4. Log Aggregator Container
+   docker run -itd --name logservice --network vpn-net -p 8001:8001 -e "Registry_IP=regservice" logservice
 
-   # Web Gateway Container
-   docker run -itd --name webservice -p 8003:8003 -p 8004:8004 \
-     -e "DB=root:password@tcp(mysql:3306)" \
-     -e "REDIS_ADDR=redis:6379" \
+   # 5. Payment Service Container
+   docker run -itd --name paymentservice --network vpn-net -p 8006:8006 \
+     -e "DB=root:gcB710.fR+z]@tcp(mysql-server:3306)" \
+     -e "REDIS_ADDR=redis-server:6379" \
+     -e "Registry_IP=regservice" \
+     paymentservice
+
+   # 6. Web Gateway Container
+   docker run -itd --name webservice --network vpn-net -p 8003:8003 -p 8004:8004 \
+     -e "DB=root:gcB710.fR+z]@tcp(mysql-server:3306)" \
+     -e "REDIS_ADDR=redis-server:6379" \
      -e "Registry_IP=regservice" \
      -e "REALITY_PUBKEY=pus2DL_XaiCBK05ddIynVtkYb75EjBm0vyCoZsUi2yw" \
      -e "REALITY_PRIKEY=mNoGzlLbIVdKM0ZJY4sVZ8IOnFhwhdpcIYWBDQ_xQiw" \
      webservice
 
-   # Node Service Container (requires host network and network privileges for iptables & proxying)
+   # 7. Node Service Container 
+   # (Requires host network and network privileges for iptables & proxying. 
+   #  Since it's on the host network, it uses 127.0.0.1 to access exposed ports of other containers)
    docker run -itd --name nodeservice --network=host --privileged \
-     -e "Registry_IP=regservice" \
+     -e "Registry_IP=127.0.0.1" \
      -e "REDIS_ADDR=127.0.0.1:6379" \
      nodeservice
    ```
