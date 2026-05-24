@@ -55,8 +55,9 @@ The application is structured as a collection of distributed microservices that 
 * **Functionality**:
   * **Xray API Controller**: Communicates with the local Xray Core daemon via gRPC (`127.0.0.1:8080`) to dynamically add and remove VLESS user accounts (`addVlessUser`/`removeVlessUser`).
   * **Dynamic Proxy Tunnels**: When a user connects, it starts a dedicated proxy listener on a random TCP port (10000–60000) that tunnels incoming TCP streams to Xray (`localhost:443`).
-  * **Token Bucket Rate Limiter**: Enforces upload/download speed limits on a per-user basis based on their subscription plan.
+  * **Redis Sliding Window Rate Limiter**: Enforces upload/download speed limits on a per-user basis based on their subscription plan using a distributed Redis sliding window.
   * **IP Pinning**: Restricts traffic to the tunnel port to only allow the client's public IP.
+  * **State Restoration**: NodeService persists its proxy configurations in Redis and automatically recovers running proxies upon restart without disconnecting users.
   * **Bandwidth Monitoring**: Collects traffic statistics passing through user tunnels and reports data consumption increments to the Web Service (`/traffic`) every 5 seconds.
   * **Traffic Limit Enforcement**: Periodically checks bandwidth consumption and automatically blocks all ports (except SSH port 22) using `iptables` if the traffic limit is reached.
 
@@ -113,6 +114,7 @@ cp .env.template .env
 ### Essential Parameters
 * `Registry_Port` / `Registry_IP`: Controls where the Registry Service listens and how clients locate it.
 * `DB`: The database connection base DSN (e.g. `root:password@tcp(127.0.0.1:3306)`). The system automatically creates a `vpn` database if it does not exist.
+* `REDIS_ADDR` / `REDIS_PASSWORD`: Connection parameters for the Redis cluster. Used for rate limiting, connection caching, and order ID resolution.
 * `SECRET`: A secret string used to sign JWT web authorization tokens.
 * `REGKEY` / `regkey`: Inter-service security keys for internal RPC authorization.
 * `REALITY_PRIKEY` / `REALITY_PUBKEY`: Keypair for VLESS Reality protocol.
@@ -188,6 +190,7 @@ cp .env.template .env
    # Web Gateway Container
    docker run -itd --name webservice -p 8003:8003 -p 8004:8004 \
      -e "DB=root:password@tcp(mysql:3306)" \
+     -e "REDIS_ADDR=redis:6379" \
      -e "Registry_IP=regservice" \
      -e "REALITY_PUBKEY=pus2DL_XaiCBK05ddIynVtkYb75EjBm0vyCoZsUi2yw" \
      -e "REALITY_PRIKEY=mNoGzlLbIVdKM0ZJY4sVZ8IOnFhwhdpcIYWBDQ_xQiw" \
@@ -196,6 +199,7 @@ cp .env.template .env
    # Node Service Container (requires host network and network privileges for iptables & proxying)
    docker run -itd --name nodeservice --network=host --privileged \
      -e "Registry_IP=regservice" \
+     -e "REDIS_ADDR=127.0.0.1:6379" \
      nodeservice
    ```
 
