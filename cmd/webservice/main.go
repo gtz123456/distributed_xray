@@ -91,7 +91,7 @@ func main() {
 
 	fmt.Printf("Logging service found at %s\n", logProviders)
 	logProvider := logProviders[rand.Intn(len(logProviders))]
-	log.SetClientLogger(logProvider.ServiceURL, reg.ServiceName)
+	log.SetClientLogger(logProvider.ServiceURL, reg)
 
 	controllers.StartHeartbeatMonitor()
 	controllers.StartPlanMonitor()

@@ -9,8 +9,20 @@ import (
 	"net/http"
 )
 
-func SetClientLogger(serviceURL string, clientService registry.ServiceName) {
-	stlog.SetPrefix(fmt.Sprintf("[%v] - ", clientService))
+func SetClientLogger(serviceURL string, r registry.Registration) {
+	prefix := fmt.Sprintf("[%v", r.ServiceName)
+	if r.ServiceID != "" {
+		prefix += fmt.Sprintf("|%v", r.ServiceID)
+	}
+	if r.PublicIP != "" {
+		prefix += fmt.Sprintf("|%v", r.PublicIP)
+	}
+	if r.PublicIPv6 != "" {
+		prefix += fmt.Sprintf("|%v", r.PublicIPv6)
+	}
+	prefix += "] - "
+
+	stlog.SetPrefix(prefix)
 	stlog.SetFlags(0)
 	stlog.SetOutput(&clientLogger{url: serviceURL})
 }

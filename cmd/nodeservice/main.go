@@ -84,7 +84,7 @@ func main() {
 
 	fmt.Printf("Logging service found at %s\n", logProviders)
 	logProvider := logProviders[rand.Intn(len(logProviders))]
-	log.SetClientLogger(logProvider.ServiceURL, r.ServiceName)
+	log.SetClientLogger(logProvider.ServiceURL, r)
 
 	// get config from web service
 	var WebProviders []registry.Registration
