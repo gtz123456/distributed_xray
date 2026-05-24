@@ -3,9 +3,7 @@ package controllers
 import (
 	"errors"
 	"fmt"
-	"go-distributed/utils"
 	"go-distributed/web/db"
-	"os"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -108,14 +106,7 @@ func Redeem(c *gin.Context) {
 }
 
 func GenerateVoucher(c *gin.Context) {
-	regkey := c.GetHeader("regkey")
-	if regkey != utils.Regkey() && regkey != os.Getenv("REGKEY") {
-		c.JSON(403, gin.H{
-			"error": "Invalid registration key",
-		})
-		return
-	}
-
+	// Auth is handled upstream by AdminAuth middleware (REGKEY only).
 	var req struct {
 		Code         string `json:"code"`
 		Type         string `json:"type"` // "balance" or "plan"

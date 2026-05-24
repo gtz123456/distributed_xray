@@ -119,8 +119,8 @@ func main() {
 	r.POST("/payment", globalLimiter.Middleware(), middleware.RequireAuth, controllers.Payment)
 	r.GET("/payment/status/:order_id", globalLimiter.Middleware(), middleware.RequireAuth, controllers.GetPaymentStatus)
 	r.GET("/payment/list", globalLimiter.Middleware(), middleware.RequireAuth, controllers.ListPayments)
-	r.POST("/payment/callback", middleware.AdminAuth, controllers.Callback)
-	// Admin routes
+	r.POST("/payment/callback", middleware.ServiceAuth, controllers.Callback)
+	// Admin routes (only accept REGKEY, not inter-service key)
 	r.POST("/admin/setplan", middleware.AdminAuth, controllers.SetPlan)
 	r.POST("/admin/generatevoucher", middleware.AdminAuth, controllers.GenerateVoucher)
 	r.Run(":" + GINPORT)

@@ -53,28 +53,33 @@ func RequireAuth(c *gin.Context) {
 	}
 }
 
+// AdminAuth verifies the request is from a human administrator.
+// Only accepts the REGKEY env var (uppercase). Inter-service keys are rejected.
 func AdminAuth(c *gin.Context) {
 	regkey := c.GetHeader("regkey")
 
 	expectedAdminKey := os.Getenv("REGKEY")
-	expectedInterServiceKey := os.Getenv("regkey")
 
-	if regkey == "" {
+	if regkey == "" || expectedAdminKey == "" || regkey != expectedAdminKey {
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return
 	}
 
-	matched := false
-	if expectedAdminKey != "" && regkey == expectedAdminKey {
-		matched = true
-	}
-	if expectedInterServiceKey != "" && regkey == expectedInterServiceKey {
-		matched = true
-	}
-
-	if !matched {
-		c.AbortWithStatus(http.StatusUnauthorized)
-		return
-	}
 	c.Next()
 }
+
+// ServiceAuth verifies the request is from a trusted internal service.
+// Only accepts the regkey env var (lowercase). Admin keys are rejected.
+func ServiceAuth(c *gin.Context) {
+	regkey := c.GetHeader("regkey")
+
+	expectedServiceKey := os.Getenv("regkey")
+
+	if regkey == "" || expectedServiceKey == "" || regkey != expectedServiceKey {
+		c.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+
+	c.Next()
+}
+
