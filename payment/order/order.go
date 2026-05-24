@@ -7,6 +7,7 @@ import (
 	"errors"
 	"go-distributed/payment/db"
 	"go-distributed/utils"
+	"os"
 	"strconv"
 	"time"
 )
@@ -17,6 +18,10 @@ var intervalSet = NewIntervalSet()                             // store the actu
 
 func init() {
 	utils.LoadEnv()
+
+	if os.Getenv("TEST_MODE") == "1" {
+		return
+	}
 
 	db.Connect()
 	db.Sync()
@@ -78,9 +83,10 @@ func RestoreStateFromDB() error {
 	var orders []db.Order
 
 	now := time.Now()
+	cutoffTime := now.Add(-paymentTimeout)
 	result := db.DB.Model(&db.Order{}).
 		Where("status = ?", "pending").
-		Where("created_at + interval ? second > ?", int(paymentTimeout.Seconds()), now).
+		Where("created_at > ?", cutoffTime).
 		Find(&orders)
 	if result.Error != nil {
 		return result.Error
