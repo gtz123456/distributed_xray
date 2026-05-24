@@ -77,17 +77,27 @@ func runCommand(name string, args ...string) error {
 
 func blockAllExcept22() {
 	log.Println("[!] Blocking all ports except 22...")
-	runCommand("iptables", "-F")
-	runCommand("iptables", "-P", "INPUT", "DROP")
-	runCommand("iptables", "-A", "INPUT", "-p", "tcp", "--dport", "22", "-j", "ACCEPT")
-	runCommand("iptables", "-A", "INPUT", "-i", "lo", "-j", "ACCEPT")
-	runCommand("iptables", "-A", "INPUT", "-m", "state", "--state", "ESTABLISHED,RELATED", "-j", "ACCEPT")
+	
+	// Ensure custom chain exists and is clean
+	runCommand("iptables", "-N", "NODESERVICE_LIMIT")
+	runCommand("iptables", "-F", "NODESERVICE_LIMIT")
+	
+	// Add rules to the custom chain
+	runCommand("iptables", "-A", "NODESERVICE_LIMIT", "-p", "tcp", "--dport", "22", "-j", "ACCEPT")
+	runCommand("iptables", "-A", "NODESERVICE_LIMIT", "-i", "lo", "-j", "ACCEPT")
+	runCommand("iptables", "-A", "NODESERVICE_LIMIT", "-m", "state", "--state", "ESTABLISHED,RELATED", "-j", "ACCEPT")
+	runCommand("iptables", "-A", "NODESERVICE_LIMIT", "-j", "DROP")
+
+	// Insert the custom chain at the top of INPUT (remove first to avoid duplicates)
+	runCommand("iptables", "-D", "INPUT", "-j", "NODESERVICE_LIMIT")
+	runCommand("iptables", "-I", "INPUT", "1", "-j", "NODESERVICE_LIMIT")
 }
 
 func RestoreFirewall() {
-	log.Println("[*] Restoring all firewall rules...")
-	runCommand("iptables", "-F")
-	runCommand("iptables", "-P", "INPUT", "ACCEPT")
+	log.Println("[*] Restoring all firewall rules (removing NodeService limits)...")
+	runCommand("iptables", "-D", "INPUT", "-j", "NODESERVICE_LIMIT")
+	runCommand("iptables", "-F", "NODESERVICE_LIMIT")
+	runCommand("iptables", "-X", "NODESERVICE_LIMIT")
 }
 
 // CheckTriffic checks the traffic usage of host and blocks all except port 22 if usage exceeds the limit.
@@ -105,8 +115,14 @@ func CheckTriffic() {
 	if int(curDay) == int(resetDay) && int(lastMonth) != curMonth {
 		log.Println("[*] Monthly reset triggered.")
 		RestoreFirewall()
-		writeFileInt(usageFile, 0)               // reset traffic usage
-		writeFileInt(monthFile, int64(curMonth)) // update current month
+		
+		curTraffic, err := getCurrentTrafficBytes()
+		if err == nil {
+			writeFileInt(usageFile, curTraffic)      // reset traffic usage baseline
+			writeFileInt(monthFile, int64(curMonth)) // update current month
+		} else {
+			log.Println("[!] Failed to get traffic for reset:", err)
+		}
 		return
 	}
 
