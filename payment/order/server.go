@@ -96,17 +96,13 @@ func (ph *payHandler) handleGetOrderStatus(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	order, ok := orderMap[id] // first try to get from memory
-	if !ok {
-		// try to get from db
-		var dbOrder db.Order
-		result := db.DB.First(&dbOrder, "id = ?", id)
-		if result.Error != nil {
-			http.Error(w, "Order not found", http.StatusNotFound)
-			return
-		}
-		order = &dbOrder
+	var dbOrder db.Order
+	result := db.DB.First(&dbOrder, "id = ?", id)
+	if result.Error != nil {
+		http.Error(w, "Order not found", http.StatusNotFound)
+		return
 	}
+	order := &dbOrder
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)

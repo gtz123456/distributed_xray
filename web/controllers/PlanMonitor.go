@@ -1,6 +1,8 @@
 package controllers
 
 import (
+	"encoding/json"
+	"go-distributed/utils"
 	"go-distributed/web/db"
 	"log"
 	"os"
@@ -39,9 +41,10 @@ func StartPlanMonitor() {
 
 			users = nil
 			// Find all users whose PlanEnd is before now or TrafficUsed is equal or greater than TrafficLimit
-			err = db.DB.Model(&db.User{}).Where("plan_end < ? OR traffic_used >= traffic_limit", now).Find(&users).Error
+			err = db.DB.Model(&db.User{}).Where("plan_end < ? OR (traffic_limit != -1 AND traffic_used >= traffic_limit)", now).Find(&users).Error
 			if err != nil {
-				return
+				log.Printf("PlanMonitor DB error: %v", err)
+				continue
 			}
 
 			// Map to collect disconnect URLs per disconnect url
@@ -50,17 +53,18 @@ func StartPlanMonitor() {
 			for _, user := range users {
 				log.Printf("User %s: TrafficUsed=%d, TrafficLimit=%d", user.Email, user.TrafficUsed, user.TrafficLimit)
 
-				// get all connections for this user, from UserConnection table
-				userConnectionMapMutex.Lock()
-				connections, exists := userConnectionMap[user.UUID]
-				if exists {
-					delete(userConnectionMap, user.UUID)
-					for _, conn := range connections {
-						disconnectURL := "http://" + conn.NodeIP + ":" + os.Getenv("Node_Port")
+				// get all connections for this user from Redis
+				conns, err := utils.RedisClient.HGetAll(utils.Ctx, "user_conns:"+user.UUID).Result()
+				if err == nil && len(conns) > 0 {
+					utils.RedisClient.Del(utils.Ctx, "user_conns:"+user.UUID)
+					utils.RedisClient.SRem(utils.Ctx, "active_users", user.UUID)
+					for _, connJSON := range conns {
+						var conn UserConnection
+						json.Unmarshal([]byte(connJSON), &conn)
+						disconnectURL := "http://" + conn.NodeIP + ":" + os.Getenv("Node_Port") + "/disconnect"
 						disconnectURLs[disconnectURL] = append(disconnectURLs[disconnectURL], user.UUID)
 					}
 				}
-				userConnectionMapMutex.Unlock()
 			}
 
 			// Batch disconnect requests per URL

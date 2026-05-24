@@ -14,6 +14,7 @@ import (
 
 func init() {
 	utils.LoadEnv()
+	utils.InitRedis()
 	db.Connect()
 	db.Sync()
 }

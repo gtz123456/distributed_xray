@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"fmt"
+	"go-distributed/utils"
 	"go-distributed/web/db"
 	"net/http"
 	"os"
@@ -17,10 +18,17 @@ func RequireAuth(c *gin.Context) {
 
 	if tokenString == "" {
 		c.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+
+	isBlacklisted, _ := utils.RedisClient.Get(utils.Ctx, "jwt_blacklist:"+tokenString).Result()
+	if isBlacklisted == "true" {
+		c.AbortWithStatus(http.StatusUnauthorized)
+		return
 	}
 
 	// Decode/validate it
-	token, _ := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		// Validate the alg is what you expect:
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
@@ -28,6 +36,11 @@ func RequireAuth(c *gin.Context) {
 
 		return []byte(os.Getenv("SECRET")), nil
 	})
+
+	if err != nil {
+		c.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
 
 	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
 		// Check the expiry date

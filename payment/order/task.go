@@ -7,11 +7,11 @@ import (
 	"fmt"
 	"go-distributed/payment/db"
 	"go-distributed/utils"
+	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
-
-	"log"
 )
 
 const paymentTimeout = 15 * time.Minute
@@ -71,15 +71,14 @@ func UpdateOrderStatus() {
 
 			amount := tx.RawData.Contract[0].Parameter.Value.Amount
 
-			orderID, ok := ActualAmountToID[amount]
-			if !ok {
-				log.Println("Order ID not found for amount:", amount)
+			orderID, err := utils.RedisClient.Get(utils.Ctx, "actual_amount_to_id:"+strconv.FormatInt(amount, 10)).Result()
+			if err != nil {
 				continue
 			}
 
-			order, ok := orderMap[orderID]
-			if !ok {
-				log.Println("Order not found:", orderID)
+			var order db.Order
+			if err := db.DB.Where("id = ?", orderID).First(&order).Error; err != nil {
+				log.Println("Order not found in DB:", orderID)
 				continue
 			}
 
@@ -87,7 +86,7 @@ func UpdateOrderStatus() {
 			if order.Status == "pending" {
 				order.Status = "paid"
 				intervalSet.Remove(order.ActualAmount)
-				delete(ActualAmountToID, amount)
+				utils.RedisClient.Del(utils.Ctx, "actual_amount_to_id:"+strconv.FormatInt(amount, 10))
 				db.DB.Model(&db.Order{}).Where("id = ?", order.ID).Update("status", "paid")
 
 				if order.Callback != "" {
@@ -129,47 +128,46 @@ func UpdateOrderStatus() {
 }
 
 func RemoveTimeoutOrders() {
-	for id, order := range orderMap {
-		if time.Since(order.CreatedAt) > paymentTimeout {
-			delete(orderMap, id)
-			delete(ActualAmountToID, int64(order.ActualAmount))
-			log.Println("Order timeout:", id)
-			if order.Status == "pending" {
-				order.Status = "expired"
-				db.DB.Model(&db.Order{}).Where("id = ?", order.ID).Update("status", "expired")
-			}
-		}
+	now := time.Now()
+	timeoutTime := now.Add(-paymentTimeout)
+
+	var expiredOrders []db.Order
+	db.DB.Model(&db.Order{}).Where("status = ? AND created_at < ?", "pending", timeoutTime).Find(&expiredOrders)
+
+	for _, order := range expiredOrders {
+		intervalSet.Remove(order.ActualAmount)
+		log.Println("Order timeout:", order.ID)
+		db.DB.Model(&db.Order{}).Where("id = ?", order.ID).Update("status", "expired")
 	}
 }
 
 func RetryCallbackFailedOrders() {
-	for id, order := range orderMap {
-		if order.Status == "callback_failed" {
-			if order.Callback != "" {
-				regkey := utils.Regkey()
-				callbackUrl := fmt.Sprintf("%s?order_id=%s", order.Callback, order.ID)
-				req, err := http.NewRequest("POST", callbackUrl, nil)
-				if err != nil {
-					log.Println("Error creating callback retry request:", err)
-					continue
-				}
-				req.Header.Set("regkey", regkey)
-				client := &http.Client{}
-				resp, err := client.Do(req)
-				if err != nil {
-					log.Println("Error calling callback URL:", err)
-					continue
-				}
-				if resp.StatusCode != http.StatusOK {
-					log.Println("Callback URL returned non-200 status:", resp.StatusCode)
-					resp.Body.Close()
-					continue
-				}
-				resp.Body.Close()
-				order.Status = "paid"
-				db.DB.Model(&db.Order{}).Where("id = ?", order.ID).Update("status", "paid")
-				log.Println("Callback retried successfully for order:", id)
+	var failedOrders []db.Order
+	db.DB.Model(&db.Order{}).Where("status = ?", "callback_failed").Find(&failedOrders)
+
+	for _, order := range failedOrders {
+		if order.Callback != "" {
+			regkey := utils.Regkey()
+			callbackUrl := fmt.Sprintf("%s?order_id=%s", order.Callback, order.ID)
+			req, err := http.NewRequest("POST", callbackUrl, nil)
+			if err != nil {
+				log.Println("Error creating callback request:", err)
+				continue
 			}
+			req.Header.Set("regkey", regkey)
+			client := &http.Client{}
+			callbackResp, err := client.Do(req)
+			if err != nil {
+				log.Println("Error calling callback URL:", err)
+				continue
+			}
+			if callbackResp.StatusCode != http.StatusOK {
+				log.Println("Callback URL returned non-200 status:", callbackResp.StatusCode)
+				callbackResp.Body.Close()
+				continue
+			}
+			callbackResp.Body.Close()
+			db.DB.Model(&db.Order{}).Where("id = ?", order.ID).Update("status", "paid")
 		}
 	}
 }

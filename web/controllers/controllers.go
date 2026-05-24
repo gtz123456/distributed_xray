@@ -9,12 +9,12 @@ import (
 	"net/http"
 	"os"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -22,7 +22,7 @@ const MAX_CONNECTIONS_PER_USER = 2
 const HEARTBEAT_TIMEOUT = 30 * time.Second
 const HEARTBEAT_CHECK_INTERVAL = 10 * time.Second
 
-var expireMap = make(map[string]time.Time)
+
 
 var RateMap = map[string]int{
 	"Free plan":    10 * 1000 * 1000 / 8,  // 10 Mbps
@@ -39,15 +39,12 @@ type Server struct {
 }
 
 type UserConnection struct {
-	NodeIP        string
-	ServiceID     string
-	NodePort      string
-	ClientIP      string
-	LastHeartBeat time.Time
+	NodeIP        string    `json:"node_ip"`
+	ServiceID     string    `json:"service_id"`
+	NodePort      string    `json:"node_port"`
+	ClientIP      string    `json:"client_ip"`
+	LastHeartBeat time.Time `json:"last_heartbeat"`
 }
-
-var userConnectionMap = make(map[string][]UserConnection) // user UUID: UserConnection list
-var userConnectionMapMutex = &sync.RWMutex{}
 
 func Signup(c *gin.Context) {
 	// Get the email/pass off req Body
@@ -157,9 +154,6 @@ func Login(c *gin.Context) {
 	// Sign and get the complete encoded token as a string using the secret
 	tokenString, err := token.SignedString([]byte(os.Getenv("SECRET")))
 
-	// Store token in map
-	expireMap[tokenString] = time.Now().Add(time.Hour * 24 * 30)
-
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "Failed to create token",
@@ -167,9 +161,34 @@ func Login(c *gin.Context) {
 		return
 	}
 
+	// Respond
 	c.JSON(http.StatusOK, gin.H{
 		"token": tokenString,
 	})
+}
+
+func Logout(c *gin.Context) {
+	tokenString := c.GetHeader("Authorization")
+	if tokenString == "" {
+		c.JSON(http.StatusOK, gin.H{"message": "Already logged out"})
+		return
+	}
+
+	token, _ := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		return []byte(os.Getenv("SECRET")), nil
+	})
+
+	if token != nil {
+		if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+			exp := int64(claims["exp"].(float64))
+			ttl := time.Unix(exp, 0).Sub(time.Now())
+			if ttl > 0 {
+				utils.RedisClient.Set(utils.Ctx, "jwt_blacklist:"+tokenString, "true", ttl)
+			}
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Logged out successfully"})
 }
 
 func User(c *gin.Context) {
@@ -368,23 +387,37 @@ func Connect(c *gin.Context) {
 		return
 	}
 
-	// Respond with the node port and pubkey
-	userConnectionMapMutex.Lock()
-	defer userConnectionMapMutex.Unlock()
-
-	userConnections := userConnectionMap[uuid]
-
-	if len(userConnections) >= MAX_CONNECTIONS_PER_USER {
-		userConnectionMap[uuid] = userConnectionMap[uuid][1:]
-	}
-
-	userConnectionMap[uuid] = append(userConnectionMap[uuid], UserConnection{
+	conn := UserConnection{
 		NodeIP:        server.PublicIP,
 		ServiceID:     serviceID,
 		NodePort:      responseBody.Port,
 		ClientIP:      clientIP,
 		LastHeartBeat: time.Now(),
-	})
+	}
+	connJSON, _ := json.Marshal(conn)
+
+	utils.RedisClient.SAdd(utils.Ctx, "active_users", uuid)
+
+	conns, _ := utils.RedisClient.HGetAll(utils.Ctx, "user_conns:"+uuid).Result()
+	if len(conns) >= MAX_CONNECTIONS_PER_USER {
+		var oldestService string
+		var oldestTime time.Time
+		first := true
+		for sID, cJSON := range conns {
+			var c UserConnection
+			json.Unmarshal([]byte(cJSON), &c)
+			if first || c.LastHeartBeat.Before(oldestTime) {
+				oldestTime = c.LastHeartBeat
+				oldestService = sID
+				first = false
+			}
+		}
+		if oldestService != "" {
+			utils.RedisClient.HDel(utils.Ctx, "user_conns:"+uuid, oldestService)
+		}
+	}
+
+	utils.RedisClient.HSet(utils.Ctx, "user_conns:"+uuid, serviceID, connJSON)
 
 	c.JSON(http.StatusOK, gin.H{
 		"port":   responseBody.Port,
@@ -422,34 +455,26 @@ func HeartbeatFromClient(c *gin.Context) {
 		return
 	}
 
-	userConnectionMapMutex.Lock()
-	defer userConnectionMapMutex.Unlock()
-
-	_, ok = userConnectionMap[userID]
-
-	if !ok {
-		c.JSON(http.StatusNotFound, gin.H{
-			"error": "User not connected to any node service",
-		})
-		return
-	}
-
-	found := false
-
-	for idx, conn := range userConnectionMap[userID] {
-		if conn.ServiceID == serviceID {
-			userConnectionMap[userID][idx].LastHeartBeat = time.Now() // Update the last heartbeat time
-			found = true
-			break
-		}
-	}
-
-	if !found {
+	connJSON, err := utils.RedisClient.HGet(utils.Ctx, "user_conns:"+userID, serviceID).Result()
+	if err == redis.Nil {
 		c.JSON(http.StatusNotFound, gin.H{
 			"error": "User not connected to the specified node service",
 		})
 		return
+	} else if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Redis error"})
+		return
 	}
+
+	var conn UserConnection
+	json.Unmarshal([]byte(connJSON), &conn)
+	conn.LastHeartBeat = time.Now()
+	newConnJSON, _ := json.Marshal(conn)
+	
+	utils.RedisClient.HSet(utils.Ctx, "user_conns:"+userID, serviceID, newConnJSON)
+	utils.RedisClient.SAdd(utils.Ctx, "active_users", userID)
+
+
 
 	c.JSON(http.StatusOK, gin.H{})
 }

@@ -19,11 +19,13 @@ import (
 
 func main() {
 	utils.LoadEnv()
+	utils.InitRedis()
 
 	host, err := utils.GetPublicIP()
 	if err != nil {
 		stlog.Fatalln("Error getting host IP:", err)
 	}
+	node.RestoreProxies(host)
 	port := os.Getenv("Node_Port")
 	if port == "" {
 		port = "80"

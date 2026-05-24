@@ -20,6 +20,7 @@ import (
 
 func init() {
 	utils.LoadEnv()
+	utils.InitRedis()
 	db.Connect()
 	db.Sync()
 }
@@ -100,11 +101,11 @@ func main() {
 	r.Use(CORSMiddleware())
 
 	globalLimiter := middleware.NewRateLimiter(15, time.Minute) // 15 requests/min/IP
-	globalLimiter.StartCleanup(10 * time.Minute)
 
 	r.POST("/signup", globalLimiter.Middleware(), controllers.Signup)
 	r.GET("/verify", globalLimiter.Middleware(), controllers.VerifyEmail)
 	r.POST("/login", globalLimiter.Middleware(), controllers.Login)
+	r.POST("/logout", globalLimiter.Middleware(), controllers.Logout)
 	r.GET("/user", globalLimiter.Middleware(), middleware.RequireAuth, controllers.User)
 	r.GET("/realitykey", globalLimiter.Middleware(), middleware.RequireAuth, controllers.Realitykey)
 	r.GET("/servers", globalLimiter.Middleware(), middleware.RequireAuth, controllers.Servers)

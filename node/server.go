@@ -32,6 +32,34 @@ type ProxyService struct {
 	cancelFunc context.CancelFunc
 }
 
+type ProxyConfig struct {
+	Port         int    `json:"port"`
+	ClientIP     string `json:"client_ip"`
+	RateLimitInt int    `json:"rate_limit_int"`
+	BurstInt     int    `json:"burst_int"`
+}
+
+var NodeIP string
+
+func RestoreProxies(serverIP string) {
+	NodeIP = serverIP
+	conns, err := utils.RedisClient.HGetAll(utils.Ctx, "node_ports:"+serverIP).Result()
+	if err == nil {
+		for uuid, cfgJSON := range conns {
+			var cfg ProxyConfig
+			json.Unmarshal([]byte(cfgJSON), &cfg)
+			ctx, cancel := context.WithCancel(context.Background())
+			go NewProxy(ctx, cfg.Port, cfg.ClientIP, cfg.RateLimitInt, cfg.BurstInt, statsStore)
+
+			connectionsLock.Lock()
+			connections[uuid] = cfg.Port
+			proxyServices[uuid] = &ProxyService{cancelFunc: cancel}
+			connectionsLock.Unlock()
+			log.Printf("Restored proxy for %s on port %d", uuid, cfg.Port)
+		}
+	}
+}
+
 var (
 	xrayCtl *XrayController
 	cfg     = &BaseConfig{
@@ -239,6 +267,15 @@ func (sh *nodeHandler) handleConnect(w http.ResponseWriter, r *http.Request) {
 	proxyServices[uuid] = &ProxyService{
 		cancelFunc: cancel,
 	}
+
+	proxyCfg := ProxyConfig{
+		Port:         port,
+		ClientIP:     clientip,
+		RateLimitInt: rateLimitInt,
+		BurstInt:     burstInt,
+	}
+	cfgJSON, _ := json.Marshal(proxyCfg)
+	utils.RedisClient.HSet(utils.Ctx, "node_ports:"+NodeIP, uuid, cfgJSON)
 	connectionsLock.Unlock()
 
 	w.Header().Set("Content-Type", "application/json")
@@ -292,6 +329,8 @@ func (sh *nodeHandler) handleDisconnect(w http.ResponseWriter, r *http.Request) 
 			svc.cancelFunc()
 			delete(proxyServices, uuid)
 		}
+		
+		utils.RedisClient.HDel(utils.Ctx, "node_ports:"+NodeIP, uuid)
 	}
 
 	w.WriteHeader(http.StatusOK)

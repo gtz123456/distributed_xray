@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"go-distributed/registry"
+	"go-distributed/utils"
 	"log"
 	"net/http"
 	"os"
@@ -54,10 +55,27 @@ func StartHeartbeatMonitor() {
 				log.Printf("Error fetching node services: %v", err)
 			}
 
-			userConnectionMapMutex.Lock()
-			for userUUID, connections := range userConnectionMap {
-				validConnections := make([]UserConnection, 0)
-				for _, conn := range connections {
+			users, err := utils.RedisClient.SMembers(utils.Ctx, "active_users").Result()
+			if err != nil {
+				log.Printf("Error fetching active users from redis: %v", err)
+				continue
+			}
+
+			timedOutMap := make(map[string][]string)
+			now := time.Now()
+
+			for _, userUUID := range users {
+				conns, err := utils.RedisClient.HGetAll(utils.Ctx, "user_conns:"+userUUID).Result()
+				if err != nil {
+					continue
+				}
+
+				validCount := 0
+				for serviceID, connJSON := range conns {
+					var conn UserConnection
+					json.Unmarshal([]byte(connJSON), &conn)
+
+					// check if node is still available
 					found := false
 					for _, reg := range regs {
 						if conn.ServiceID == reg.ServiceID && conn.NodeIP == reg.PublicIP {
@@ -65,58 +83,26 @@ func StartHeartbeatMonitor() {
 							break
 						}
 					}
-					if found {
-						validConnections = append(validConnections, conn)
-					} else {
+
+					if !found {
 						log.Printf("Removing connection for user %s to node %s as it is no longer available.", userUUID, conn.NodeIP)
+						utils.RedisClient.HDel(utils.Ctx, "user_conns:"+userUUID, serviceID)
+						continue
 					}
-				}
-				if len(validConnections) == 0 {
-					delete(userConnectionMap, userUUID)
-					log.Printf("Removed user %s from connection map as they have no valid connections left.", userUUID)
-				} else {
-					userConnectionMap[userUUID] = validConnections
-				}
-			}
-			userConnectionMapMutex.Unlock()
 
-			usersToProcess := make(map[string][]UserConnection)
-
-			// make a snapshot of the current state
-			userConnectionMapMutex.RLock()
-			for userUUID, connections := range userConnectionMap {
-				copiedConnections := make([]UserConnection, len(connections))
-				copy(copiedConnections, connections)
-				usersToProcess[userUUID] = copiedConnections
-			}
-			userConnectionMapMutex.RUnlock()
-
-			// Map to collect timed out connections per disconnect URL
-			timedOutMap := make(map[string][]string)
-			now := time.Now()
-
-			for userUUID, connections := range usersToProcess {
-				var validConnections []UserConnection
-
-				for _, conn := range connections {
 					if now.Sub(conn.LastHeartBeat) <= HEARTBEAT_TIMEOUT {
-						validConnections = append(validConnections, conn)
+						validCount++
 					} else {
 						disconnectURL := "http://" + conn.NodeIP + ":" + os.Getenv("Node_Port") + "/disconnect"
 						timedOutMap[disconnectURL] = append(timedOutMap[disconnectURL], userUUID)
+						utils.RedisClient.HDel(utils.Ctx, "user_conns:"+userUUID, serviceID)
 					}
 				}
 
-				// Update the userConnectionMap with valid connections
-				userConnectionMapMutex.Lock()
-				if len(validConnections) == 0 {
-					delete(userConnectionMap, userUUID)
-
-					log.Printf("Removed user %s from connection map as they have no valid connections left.", userUUID)
-				} else {
-					userConnectionMap[userUUID] = validConnections
+				if validCount == 0 {
+					utils.RedisClient.SRem(utils.Ctx, "active_users", userUUID)
+					log.Printf("Removed user %s from active users as they have no valid connections left.", userUUID)
 				}
-				userConnectionMapMutex.Unlock()
 			}
 
 			// Batch disconnect requests per URL

@@ -7,16 +7,13 @@ import (
 	"errors"
 	"go-distributed/payment/db"
 	"go-distributed/utils"
+	"strconv"
 	"time"
 )
 
 const defaultWalletAddress = "TQehEHqevPkudydohYrjJxDwdBkAgFUebw" // default wallet address
 
-var ActualAmountToID map[int64]string = make(map[int64]string) // ActualAmount → Order ID
 var intervalSet = NewIntervalSet()                             // store the actual amounts as intervals, for fast searching
-
-var orderMap = make(map[string]*db.Order) // Order ID → Order
-// TODO: replace with persistent storage eg. Redis
 
 func init() {
 	utils.LoadEnv()
@@ -71,8 +68,7 @@ func CreateOrder(id string, amount int64, callback, method, currency string) (db
 		return db.Order{}, result.Error
 	}
 
-	orderMap[id] = &order
-	ActualAmountToID[int64(actualAmount)] = id // map actual amount to order id
+	utils.RedisClient.Set(utils.Ctx, "actual_amount_to_id:"+strconv.FormatInt(actualAmount, 10), id, paymentTimeout)
 
 	return order, nil
 }
@@ -91,20 +87,12 @@ func RestoreStateFromDB() error {
 	}
 
 	for _, order := range orders {
-		orderMap[order.ID] = &order
-		newActualAmount, err := mapAmountToActualAmount(order.Amount)
-		if err != nil {
-			return err
+		intervalSet.Add(order.ActualAmount)
+		
+		ttl := time.Until(order.CreatedAt.Add(paymentTimeout))
+		if ttl > 0 {
+			utils.RedisClient.Set(utils.Ctx, "actual_amount_to_id:"+strconv.FormatInt(order.ActualAmount, 10), order.ID, ttl)
 		}
-
-		if newActualAmount != order.ActualAmount {
-			order.ActualAmount = newActualAmount
-			result = db.DB.Model(&db.Order{}).Where("id = ?", order.ID).Update("actual_amount", newActualAmount)
-			if result.Error != nil {
-				return result.Error
-			}
-		}
-		ActualAmountToID[int64(order.ActualAmount)] = order.ID
 	}
 
 	return nil

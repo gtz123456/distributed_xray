@@ -176,6 +176,9 @@ cp .env.template .env
    # MySQL Database Container
    docker run -itd --name mysql -p 3306:3306 -e MYSQL_ROOT_PASSWORD=password mysql
 
+   # Redis Cache Container
+   docker run -itd --name redis -p 6379:6379 redis:latest
+
    # Registry Discovery Container
    docker run -itd --name regservice -p 8000:8000 regservice
 
