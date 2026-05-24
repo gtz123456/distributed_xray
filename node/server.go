@@ -226,6 +226,7 @@ func (sh *nodeHandler) handleConnect(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
+		log.Printf("User %s added successfully (on retry)", userInfo.Email)
 	} else {
 		log.Printf("User %s added successfully", userInfo.Email)
 	}

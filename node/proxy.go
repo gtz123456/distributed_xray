@@ -3,6 +3,7 @@ package node
 import (
 	"context"
 	"io"
+	"log"
 	"net"
 	"strconv"
 	"sync"
@@ -96,6 +97,7 @@ func NewProxy(ctx context.Context, port int, sourceIP string, rateLimit int, bur
 		}
 		remoteAddr, _, err := net.SplitHostPort(conn.RemoteAddr().String())
 		if err != nil || remoteAddr != sourceIP {
+			log.Printf("[Proxy] Connection from %s rejected, expected client IP: %s (err: %v)", remoteAddr, sourceIP, err)
 			conn.Close()
 			continue
 		}
