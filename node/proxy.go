@@ -3,7 +3,6 @@ package node
 import (
 	"context"
 	"io"
-	"log"
 	"net"
 	"strconv"
 	"sync"
