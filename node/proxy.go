@@ -95,12 +95,8 @@ func NewProxy(ctx context.Context, port int, sourceIP string, rateLimit int, bur
 				return err
 			}
 		}
-		remoteAddr, _, err := net.SplitHostPort(conn.RemoteAddr().String())
-		if err != nil || remoteAddr != sourceIP {
-			log.Printf("[Proxy] Connection from %s rejected, expected client IP: %s (err: %v)", remoteAddr, sourceIP, err)
-			conn.Close()
-			continue
-		}
+		// Removed IP check to support Docker NAT and mobile roaming.
+		// Xray's Reality and VLESS UUID already provide robust authentication.
 		go handleConnection(conn, "localhost:443", upLim, downLim, statsStore)
 	}
 }
