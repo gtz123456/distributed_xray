@@ -96,6 +96,7 @@ func main() {
 
 	controllers.StartHeartbeatMonitor()
 	controllers.StartPlanMonitor()
+	go controllers.StartReleaseCacheMonitor()
 
 	r := gin.Default()
 	r.Use(CORSMiddleware())
@@ -110,6 +111,8 @@ func main() {
 	r.GET("/realitykey", globalLimiter.Middleware(), middleware.RequireAuth, controllers.Realitykey)
 	r.GET("/servers", globalLimiter.Middleware(), middleware.RequireAuth, controllers.Servers)
 	r.GET("/version", globalLimiter.Middleware(), controllers.Version)
+	r.GET("/releases", globalLimiter.Middleware(), controllers.GetReleases)
+	r.Static("/downloads", "./public/releases")
 	r.POST("/connect", globalLimiter.Middleware(), middleware.RequireAuth, controllers.Connect)
 	r.POST("/subscribe", globalLimiter.Middleware(), middleware.RequireAuth, controllers.Subscribe)
 	r.POST("/redeem", globalLimiter.Middleware(), middleware.RequireAuth, controllers.Redeem)
