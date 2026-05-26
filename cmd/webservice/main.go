@@ -125,7 +125,28 @@ func main() {
 	r.GET("/payment/list", globalLimiter.Middleware(), middleware.RequireAuth, controllers.ListPayments)
 	r.POST("/payment/callback", middleware.ServiceAuth, controllers.Callback)
 	// Admin routes (only accept REGKEY, not inter-service key)
-	r.POST("/admin/setplan", middleware.AdminAuth, controllers.SetPlan)
-	r.POST("/admin/generatevoucher", middleware.AdminAuth, controllers.GenerateVoucher)
+	admin := r.Group("/admin")
+	admin.Use(middleware.AdminAuth)
+	{
+		// User management
+		admin.GET("/users", controllers.ListUsers)
+		admin.GET("/user/:email", controllers.GetUser)
+		admin.POST("/user/:uuid/setplan", controllers.AdminSetPlan)
+		admin.POST("/user/:uuid/resettraffic", controllers.AdminResetTraffic)
+		admin.POST("/user/:uuid/addbalance", controllers.AdminAddBalance)
+		admin.POST("/user/:uuid/ban", controllers.AdminBanUser)
+		admin.POST("/user/:uuid/unban", controllers.AdminUnbanUser)
+		admin.DELETE("/user/:uuid", controllers.AdminDeleteUser)
+		// Connections & nodes
+		admin.GET("/connections", controllers.AdminListConnections)
+		admin.POST("/user/:uuid/disconnect", controllers.AdminDisconnectUser)
+		admin.GET("/nodes", controllers.AdminListNodes)
+		// Vouchers
+		admin.POST("/generatevoucher", controllers.GenerateVoucher)
+		admin.GET("/vouchers", controllers.AdminListVouchers)
+		admin.DELETE("/voucher/:code", controllers.AdminRevokeVoucher)
+		// Stats
+		admin.GET("/stats", controllers.AdminStats)
+	}
 	r.Run(":" + GINPORT)
 }
