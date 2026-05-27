@@ -147,6 +147,7 @@ func main() {
 		admin.DELETE("/voucher/:code", controllers.AdminRevokeVoucher)
 		// Stats
 		admin.GET("/stats", controllers.AdminStats)
+		admin.GET("/cluster", controllers.AdminCluster)
 	}
 	r.Run(":" + GINPORT)
 }
