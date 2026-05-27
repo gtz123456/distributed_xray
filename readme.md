@@ -140,23 +140,40 @@ cp .env.template .env
    go build -o nodeservice ./cmd/nodeservice
    ```
 
-2. **Start the Services in Sequence**:
-   Always start the registry service first so other services can self-register:
+2. **Start the Services in Sequence using tmux**:
+   Using `tmux` allows you to manage all services in a single session and easily view their real-time logs.
    ```bash
-   # 1. Start Service Registry
-   nohup ./regservice > reg.log 2>&1 &
+   # Create a new detached tmux session named 'vpn'
+   tmux new-session -d -s vpn
+
+   # 1. Start Service Registry (Always start this first)
+   tmux rename-window -t vpn:0 'regservice'
+   tmux send-keys -t vpn:0 './regservice' C-m
 
    # 2. Start Centralized Logger
-   nohup ./logservice > log.log 2>&1 &
+   tmux new-window -t vpn -n 'logservice'
+   tmux send-keys -t vpn:logservice './logservice' C-m
 
    # 3. Start Payment Service
-   nohup ./paymentservice > payment.log 2>&1 &
+   tmux new-window -t vpn -n 'paymentservice'
+   tmux send-keys -t vpn:paymentservice './paymentservice' C-m
 
    # 4. Start Web Service
-   nohup ./webservice > web.log 2>&1 &
+   tmux new-window -t vpn -n 'webservice'
+   tmux send-keys -t vpn:webservice './webservice' C-m
 
    # 5. Start Node Service (Must run as root for iptables / port allocation permissions)
-   sudo nohup ./nodeservice > node.log 2>&1 &
+   tmux new-window -t vpn -n 'nodeservice'
+   tmux send-keys -t vpn:nodeservice 'sudo ./nodeservice' C-m
+
+   # Attach to the session to monitor the services
+   tmux attach -t vpn
+   ```
+
+3. **Stop the Services**:
+   To stop all running services cleanly, simply kill the tmux session:
+   ```bash
+   tmux kill-session -t vpn
    ```
 
 ---
