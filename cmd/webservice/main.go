@@ -7,6 +7,7 @@ import (
 	"go-distributed/registry"
 	"go-distributed/service"
 	"go-distributed/utils"
+	"go-distributed/web/config"
 	"go-distributed/web/controllers"
 	"go-distributed/web/db"
 	"go-distributed/web/middleware"
@@ -23,6 +24,7 @@ func init() {
 	utils.InitRedis()
 	db.Connect()
 	db.Sync()
+	config.InitReferralConfig()
 }
 
 func CORSMiddleware() gin.HandlerFunc {

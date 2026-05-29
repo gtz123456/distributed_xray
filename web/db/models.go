@@ -22,6 +22,7 @@ type User struct {
 	TrafficLimit int // in Bytes, -1 means unlimited
 
 	ReferralCode string
+	ReferredBy   string // Stores the ReferralCode of the user who invited this user
 	Balance      int // in cents
 
 	// email verification

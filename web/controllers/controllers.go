@@ -16,6 +16,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 	"golang.org/x/crypto/bcrypt"
+	"go-distributed/web/config"
 )
 
 const MAX_CONNECTIONS_PER_USER = 2
@@ -49,8 +50,9 @@ type UserConnection struct {
 func Signup(c *gin.Context) {
 	// Get the email/pass off req Body
 	var body struct {
-		Email    string
-		Password string
+		Email        string
+		Password     string
+		ReferralCode string `json:"referral_code"`
 	}
 
 	if c.Bind(&body) != nil {
@@ -59,6 +61,17 @@ func Signup(c *gin.Context) {
 		})
 
 		return
+	}
+
+	// Check if referral code is valid
+	var referrer db.User
+	if body.ReferralCode != "" {
+		if err := db.DB.First(&referrer, "referral_code = ?", body.ReferralCode).Error; err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "Invalid referral code",
+			})
+			return
+		}
 	}
 
 	// Hash the password
@@ -73,6 +86,7 @@ func Signup(c *gin.Context) {
 
 	// Create the user
 	UUID := uuid.New().String()
+	newReferralCode := utils.GenerateUUID()[:8] // simple 8 char code
 
 	user := db.User{
 		Email:    body.Email,
@@ -87,7 +101,29 @@ func Signup(c *gin.Context) {
 		TrafficUsed:  0,
 		TrafficLimit: 10 * 1000 * 1000 * 1000, // 10 GB for free trail
 
-		IsVerified:  true,
+		IsVerified:   true,
+		ReferralCode: newReferralCode,
+	}
+
+	// Apply referral reward
+	if referrer.ID != 0 {
+		user.ReferredBy = referrer.ReferralCode
+		
+		// Reward Referee
+		user.Plan = "Premium plan"
+		user.TrafficLimit = 200 * 1000 * 1000 * 1000 // Premium plan limit
+		user.PlanEnd = time.Now().AddDate(0, 0, config.Referral.SignupRewardDaysReferee)
+
+		// Reward Referrer
+		if referrer.Plan == "Free plan" || referrer.PlanEnd.Before(time.Now()) {
+			referrer.Plan = "Premium plan"
+			referrer.TrafficLimit = 200 * 1000 * 1000 * 1000
+			referrer.PlanEnd = time.Now().AddDate(0, 0, config.Referral.SignupRewardDaysReferrer)
+		} else {
+			// extend existing plan
+			referrer.PlanEnd = referrer.PlanEnd.AddDate(0, 0, config.Referral.SignupRewardDaysReferrer)
+		}
+		db.DB.Save(&referrer)
 	}
 
 	result := db.DB.Create(&user)

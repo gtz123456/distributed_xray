@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"go-distributed/registry"
 	"go-distributed/utils"
+	"go-distributed/web/config"
 	"go-distributed/web/db"
 	"os"
 
@@ -149,6 +150,20 @@ func Callback(c *gin.Context) {
 	if err := tx.Save(&user).Error; err != nil {
 		tx.Rollback()
 		return
+	}
+
+	// Referral logic: give rebate to referrer
+	if user.ReferredBy != "" {
+		var referrer db.User
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("referral_code = ?", user.ReferredBy).First(&referrer).Error; err == nil {
+			
+			rebateAmount := payment.Amount * config.Referral.PaymentRebatePercentReferrer / 100
+			if rebateAmount > 0 {
+				referrer.Balance += rebateAmount
+				tx.Save(&referrer)
+			}
+		}
 	}
 
 	tx.Commit()
