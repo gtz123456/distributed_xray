@@ -242,6 +242,7 @@ func User(c *gin.Context) {
 		"traffic_used":  userinfo.TrafficUsed,
 		"traffic_limit": userinfo.TrafficLimit,
 		"balance":       userinfo.Balance,
+		"referral_code": userinfo.ReferralCode,
 	})
 }
 
