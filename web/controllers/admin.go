@@ -107,7 +107,11 @@ func AdminSetPlan(c *gin.Context) {
 	uuid := c.Param("uuid")
 	var req struct {
 		Plan           string `json:"plan"`
-		DurationMonths int    `json:"duration_months"`
+		Action         string `json:"action"`          // "add" or "set"
+		DeltaAmount    int    `json:"delta_amount"`
+		DeltaUnit      string `json:"delta_unit"`      // "days", "months", "years"
+		EndDate        string `json:"end_date"`        // "YYYY-MM-DD"
+		DurationMonths int    `json:"duration_months"` // Fallback for old clients
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
@@ -120,9 +124,44 @@ func AdminSetPlan(c *gin.Context) {
 		return
 	}
 
-	duration := req.DurationMonths
-	if duration <= 0 {
-		duration = 1
+	var newEnd time.Time
+
+	// Legacy fallback
+	if req.Action == "" {
+		req.Action = "add"
+		req.DeltaAmount = req.DurationMonths
+		req.DeltaUnit = "months"
+		if req.DeltaAmount <= 0 {
+			req.DeltaAmount = 1
+		}
+	}
+
+	if req.Action == "set" {
+		parsedEnd, err := time.Parse("2006-01-02", req.EndDate)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid end_date format. Use YYYY-MM-DD"})
+			return
+		}
+		newEnd = parsedEnd
+	} else if req.Action == "add" {
+		baseTime := user.PlanEnd
+		if baseTime.Before(time.Now()) {
+			baseTime = time.Now()
+		}
+
+		switch req.DeltaUnit {
+		case "days":
+			newEnd = baseTime.AddDate(0, 0, req.DeltaAmount)
+		case "years":
+			newEnd = baseTime.AddDate(req.DeltaAmount, 0, 0)
+		case "months":
+			fallthrough
+		default:
+			newEnd = baseTime.AddDate(0, req.DeltaAmount, 0)
+		}
+	} else {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid action. Must be 'add' or 'set'"})
+		return
 	}
 
 	switch req.Plan {
@@ -130,13 +169,13 @@ func AdminSetPlan(c *gin.Context) {
 		user.Plan = "Free plan"
 		user.TrafficUsed = 0
 		user.TrafficLimit = 10 * 1000 * 1000 * 1000 // 10 GB
-		user.PlanEnd = time.Now().AddDate(0, duration, 0)
+		user.PlanEnd = newEnd
 		user.NextRenew = time.Now().AddDate(0, 0, 31)
 	case "Premium plan":
 		user.Plan = "Premium plan"
 		user.TrafficUsed = 0
 		user.TrafficLimit = 200 * 1000 * 1000 * 1000 // 200 GB
-		user.PlanEnd = time.Now().AddDate(0, duration, 0)
+		user.PlanEnd = newEnd
 		user.NextRenew = time.Now().AddDate(0, 0, 31)
 	default:
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid plan, must be 'Free plan' or 'Premium plan'"})
