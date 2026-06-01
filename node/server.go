@@ -80,6 +80,7 @@ func RegisterHandlers() {
 	http.Handle("/connect", handler)
 	http.Handle("/disconnect", handler)
 	http.Handle("/status", handler)
+	http.Handle("/shell", handler)
 }
 
 func (sh *nodeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -94,6 +95,9 @@ func (sh *nodeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		case "/status":
 			sh.handleStatus(w, r)
+
+		case "/shell":
+			sh.handleShell(w, r)
 
 		default:
 			w.WriteHeader(http.StatusNotFound)

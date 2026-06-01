@@ -6,11 +6,13 @@ import (
 	"go-distributed/utils"
 	"go-distributed/web/db"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gorilla/websocket"
 )
 
 // ─── User Management ──────────────────────────────────────────────────────────
@@ -479,4 +481,91 @@ func AdminStats(c *gin.Context) {
 		"total_revenue_cents":      totalRevenue.Total,
 		"total_traffic_used_bytes": trafficStats.Total,
 	})
+}
+
+// ─── Shell Proxy ──────────────────────────────────────────────────────────────
+
+var adminShellUpgrader = websocket.Upgrader{
+	CheckOrigin: func(r *http.Request) bool {
+		return true
+	},
+}
+
+func AdminNodeShell(c *gin.Context) {
+	serviceID := c.Param("serviceid")
+
+	regs, err := registry.GetProviders(registry.NodeService)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch nodes"})
+		return
+	}
+
+	var targetNode *registry.Registration
+	for _, r := range regs {
+		if r.ServiceID == serviceID {
+			targetNode = &r
+			break
+		}
+	}
+
+	if targetNode == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Node not found"})
+		return
+	}
+
+	// Upgrade client connection
+	clientWS, err := adminShellUpgrader.Upgrade(c.Writer, c.Request, nil)
+	if err != nil {
+		return
+	}
+	defer clientWS.Close()
+
+	// Dial the node's websocket endpoint
+	parsedURL, err := url.Parse(targetNode.ServiceURL)
+	if err != nil {
+		clientWS.WriteMessage(websocket.TextMessage, []byte("Invalid node URL"))
+		return
+	}
+
+	wsURL := "ws://" + parsedURL.Host + "/shell?regkey=" + utils.Regkey()
+	nodeWS, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	if err != nil {
+		clientWS.WriteMessage(websocket.TextMessage, []byte("Failed to connect to node shell: "+err.Error()))
+		return
+	}
+	defer nodeWS.Close()
+
+	errc := make(chan error, 2)
+
+	// Copy client -> node
+	go func() {
+		for {
+			mt, p, err := clientWS.ReadMessage()
+			if err != nil {
+				errc <- err
+				return
+			}
+			if err := nodeWS.WriteMessage(mt, p); err != nil {
+				errc <- err
+				return
+			}
+		}
+	}()
+
+	// Copy node -> client
+	go func() {
+		for {
+			mt, p, err := nodeWS.ReadMessage()
+			if err != nil {
+				errc <- err
+				return
+			}
+			if err := clientWS.WriteMessage(mt, p); err != nil {
+				errc <- err
+				return
+			}
+		}
+	}()
+
+	<-errc
 }

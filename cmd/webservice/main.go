@@ -143,6 +143,7 @@ func main() {
 		admin.GET("/connections", controllers.AdminListConnections)
 		admin.POST("/user/:uuid/disconnect", controllers.AdminDisconnectUser)
 		admin.GET("/nodes", controllers.AdminListNodes)
+		admin.GET("/nodes/:serviceid/shell", controllers.AdminNodeShell)
 		// Vouchers
 		admin.POST("/generatevoucher", controllers.GenerateVoucher)
 		admin.GET("/vouchers", controllers.AdminListVouchers)
