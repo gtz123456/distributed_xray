@@ -46,5 +46,10 @@ func GetPublicIPv6() (string, error) {
 		return "", err
 	}
 
-	return string(ip), nil
+	ipStr := string(ip)
+	if !strings.Contains(ipStr, ":") {
+		return "", nil // Not an IPv6 address
+	}
+
+	return ipStr, nil
 }
