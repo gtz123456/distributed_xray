@@ -4,25 +4,25 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/oneclickvirt/UnlockTests/executor"
 	"github.com/oneclickvirt/UnlockTests/utils"
-	"github.com/oneclickvirt/UnlockTests/uts"
 	"github.com/oneclickvirt/defaultset"
 )
 
 func getMediaConnectivity(language string) string {
 	var res string
-	readStatus := uts.ReadSelect(language, "0")
+	readStatus := executor.ReadSelect(language, "20")
 	if !readStatus {
 		return ""
 	}
-	if uts.IPV4 {
+	if executor.IPV4 {
 		res += defaultset.Blue("IPV4:") + "\n"
-		res += uts.RunTests(utils.Ipv4HttpClient, "ipv4", language, false)
+		res += executor.RunTests(utils.Ipv4HttpClient, "ipv4", language, false)
 		return res
 	}
-	if uts.IPV6 {
+	if executor.IPV6 {
 		res += defaultset.Blue("IPV6:") + "\n"
-		res += uts.RunTests(utils.Ipv6HttpClient, "ipv6", language, false)
+		res += executor.RunTests(utils.Ipv6HttpClient, "ipv6", language, false)
 		return res
 	}
 	return ""
@@ -35,21 +35,27 @@ func parseConnectivity(output string, connectivity map[string]bool) map[string]b
 	lines := strings.Split(clean, "\n")
 
 	mapping := map[string]string{
-		"BingSearch":   "Bing",
-		"GoogleSearch": "Google",
-
-		"Claude":  "Claude",
-		"ChatGPT": "ChatGPT",
-		"Gemini":  "Gemini",
-
-		"YouTube Region": "Youtube",
-		"Netflix":        "Netflix",
-		"Disney+":        "DisneyPlus",
-		"Spotify":        "Spotify",
-		"TikTok":         "TikTok",
-
-		"Reddit":      "Reddit",
-		"Steam Store": "Steam",
+		"BingSearch":        "Bing",
+		"GoogleSearch":      "Google",
+		"Claude":            "Claude",
+		"ChatGPT":           "ChatGPT",
+		"Gemini":            "Gemini",
+		"MetaAI":            "MetaAI",
+		"YouTube Region":    "Youtube",
+		"Netflix":           "Netflix",
+		"Disney+":           "DisneyPlus",
+		"Amazon Prime Video": "AmazonPrime",
+		"TikTok":            "TikTok",
+		"Niconico":          "Niconico",
+		"Wavve":             "Wavve",
+		"Peacock TV":        "PeacockTV",
+		"Discovery+":        "DiscoveryPlus",
+		"Hulu":              "Hulu",
+		"Crunchyroll":       "Crunchyroll",
+		"NBA TV":            "NBATV",
+		"Google Play Store": "GooglePlayStore",
+		"Steam Store":       "Steam",
+		"Spotify":           "Spotify", // Can be 'Spotify Registration'
 	}
 
 	for _, line := range lines {
@@ -62,7 +68,9 @@ func parseConnectivity(output string, connectivity map[string]bool) map[string]b
 			if strings.HasPrefix(line, k) {
 				if strings.Contains(line, "YES") {
 					connectivity[v] = true
-				} else {
+				} else if !connectivity[v] {
+					// Only set to false if it's not already true.
+					// This prevents lines like "Netflix CDN" from overwriting the "Netflix" YES result.
 					connectivity[v] = false
 				}
 			}
@@ -80,22 +88,27 @@ func GetConnectivity() map[string]bool {
 	}
 
 	connectivity := map[string]bool{
-		"Bing":   false,
-		"Google": false,
-
-		"Claude":  false,
-		"ChatGPT": false,
-		"Gemini":  false,
-
-		"Youtube":    false,
-		"Netflix":    false,
-		"DisneyPlus": false,
-		"Spotify":    false,
-		"TikTok":     false,
-
-		"Reddit": false,
-
-		"Steam": false,
+		"Bing":            false,
+		"Google":          false,
+		"Claude":          false,
+		"ChatGPT":         false,
+		"Gemini":          false,
+		"MetaAI":          false,
+		"Youtube":         false,
+		"Netflix":         false,
+		"DisneyPlus":      false,
+		"AmazonPrime":     false,
+		"TikTok":          false,
+		"Niconico":        false,
+		"Wavve":           false,
+		"PeacockTV":       false,
+		"DiscoveryPlus":   false,
+		"Hulu":            false,
+		"Crunchyroll":     false,
+		"NBATV":           false,
+		"GooglePlayStore": false,
+		"Steam":           false,
+		"Spotify":         false,
 	}
 
 	return parseConnectivity(connectivityStr, connectivity)

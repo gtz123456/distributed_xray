@@ -23,6 +23,7 @@ require (
 require (
 	github.com/andybalholm/brotli v1.2.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
+	github.com/clipperhouse/uax29/v2 v2.2.0 // indirect
 	github.com/cloudflare/circl v1.6.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0 // indirect
@@ -33,6 +34,9 @@ require (
 	github.com/icholy/digest v1.1.0 // indirect
 	github.com/imroc/req/v3 v3.54.0 // indirect
 	github.com/klauspost/compress v1.18.0 // indirect
+	github.com/mattn/go-colorable v0.1.14 // indirect
+	github.com/mattn/go-rl v0.0.0-20260413075423-3ae726920de8 // indirect
+	github.com/mattn/go-runewidth v0.0.23 // indirect
 	github.com/mattn/go-sqlite3 v1.14.22 // indirect
 	github.com/miekg/dns v1.1.66 // indirect
 	github.com/mitchellh/colorstring v0.0.0-20190213212951-d06e56a500db // indirect
@@ -83,7 +87,7 @@ require (
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
-	github.com/oneclickvirt/UnlockTests v0.0.28-20250924054500
+	github.com/oneclickvirt/UnlockTests v0.0.36-20260527144003
 	github.com/pelletier/go-toml/v2 v2.2.2 // indirect
 	github.com/power-devops/perfstat v0.0.0-20210106213030-5aafc221ea8c // indirect
 	github.com/shoenig/go-m1cpu v0.1.6 // indirect
