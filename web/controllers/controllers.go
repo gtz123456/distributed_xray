@@ -606,7 +606,11 @@ func Subscribe(c *gin.Context) {
 		userinfo.TrafficLimit = 50 * 1000 * 1000 * 1000 // 50 GB for free plan
 	} else { // extend premium plan
 		// TODO: reset traffic used when renewing premium plan ?
-		userinfo.PlanEnd = userinfo.PlanEnd.AddDate(0, req.Duration, 0)
+		baseTime := userinfo.PlanEnd
+		if baseTime.Before(time.Now()) {
+			baseTime = time.Now()
+		}
+		userinfo.PlanEnd = baseTime.AddDate(0, req.Duration, 0)
 		userinfo.TrafficLimit = 200 * 1000 * 1000 * 1000 // 200 GB for premium plan
 	}
 	now := time.Now()
