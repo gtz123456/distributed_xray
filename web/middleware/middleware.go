@@ -70,6 +70,9 @@ func RequireAuth(c *gin.Context) {
 // Only accepts the REGKEY env var (uppercase). Inter-service keys are rejected.
 func AdminAuth(c *gin.Context) {
 	regkey := c.GetHeader("regkey")
+	if regkey == "" {
+		regkey = c.Query("regkey")
+	}
 
 	expectedAdminKey := os.Getenv("REGKEY")
 
