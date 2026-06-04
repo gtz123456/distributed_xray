@@ -46,16 +46,38 @@ func RestoreProxies(serverIP string) {
 	conns, err := utils.RedisClient.HGetAll(utils.Ctx, "node_ports:"+serverIP).Result()
 	if err == nil {
 		for uuid, cfgJSON := range conns {
-			var cfg ProxyConfig
-			json.Unmarshal([]byte(cfgJSON), &cfg)
+			var proxyCfg ProxyConfig
+			json.Unmarshal([]byte(cfgJSON), &proxyCfg)
+			
+			// Re-inject user into Xray-core
+			if xrayCtl == nil {
+				xrayCtl = new(XrayController)
+				if err := xrayCtl.Init(cfg); err != nil { // cfg here refers to the global BaseConfig
+					log.Printf("Failed to initialize Xray controller during restore: %v", err)
+				}
+			}
+			if xrayCtl != nil && xrayCtl.HsClient != nil {
+				userInfo := &UserInfo{
+					Uuid:  uuid,
+					Level: 0,
+					InTag: "test",
+					Email: uuid, // Email is missing in ProxyConfig, fallback to uuid
+				}
+				err := addVlessUser(xrayCtl.HsClient, userInfo)
+				if err != nil {
+					removeVlessUser(xrayCtl.HsClient, userInfo)
+					addVlessUser(xrayCtl.HsClient, userInfo)
+				}
+			}
+
 			ctx, cancel := context.WithCancel(context.Background())
-			go NewProxy(ctx, cfg.Port, cfg.ClientIP, cfg.RateLimitInt, cfg.BurstInt, statsStore)
+			go NewProxy(ctx, proxyCfg.Port, proxyCfg.ClientIP, proxyCfg.RateLimitInt, proxyCfg.BurstInt, statsStore)
 
 			connectionsLock.Lock()
-			connections[uuid] = cfg.Port
+			connections[uuid] = proxyCfg.Port
 			proxyServices[uuid] = &ProxyService{cancelFunc: cancel}
 			connectionsLock.Unlock()
-			log.Printf("Restored proxy for %s on port %d", uuid, cfg.Port)
+			log.Printf("Restored proxy for %s on port %d", uuid, proxyCfg.Port)
 		}
 	}
 }
