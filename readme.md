@@ -206,13 +206,13 @@ cp .env.template .env
      -e MYSQL_ROOT_PASSWORD='gcB710.fR+z]' \
      mysql:latest
 
-   # 2. Redis Cache Container
+   # 2. Redis Cache Container (WARNING: MUST use --requirepass if exposed to public via -p)
    docker run -d \
      --name redis-server \
      --network vpn-net \
      -p 6379:6379 \
      -v /my/own/redisdata:/data \
-     redis:latest redis-server --appendonly yes
+     redis:latest redis-server --appendonly yes --requirepass "YOUR_SECURE_PASSWORD"
 
    # 3. Registry Discovery Container
    docker run -itd --name regservice --network vpn-net -p 8000:8000 regservice
@@ -224,6 +224,7 @@ cp .env.template .env
    docker run -itd --name paymentservice --network vpn-net -p 8006:8006 \
      -e "DB=root:gcB710.fR+z]@tcp(mysql-server:3306)" \
      -e "REDIS_ADDR=redis-server:6379" \
+     -e "REDIS_PASSWORD=YOUR_SECURE_PASSWORD" \
      -e "Registry_IP=regservice" \
      paymentservice
 
@@ -231,6 +232,7 @@ cp .env.template .env
    docker run -itd --name webservice --network vpn-net -p 8003:8003 -p 8004:8004 \
      -e "DB=root:gcB710.fR+z]@tcp(mysql-server:3306)" \
      -e "REDIS_ADDR=redis-server:6379" \
+     -e "REDIS_PASSWORD=YOUR_SECURE_PASSWORD" \
      -e "Registry_IP=regservice" \
      -e "REALITY_PUBKEY=pus2DL_XaiCBK05ddIynVtkYb75EjBm0vyCoZsUi2yw" \
      -e "REALITY_PRIKEY=mNoGzlLbIVdKM0ZJY4sVZ8IOnFhwhdpcIYWBDQ_xQiw" \
@@ -242,6 +244,7 @@ cp .env.template .env
    docker run -itd --name nodeservice --network=host --privileged \
      -e "Registry_IP=127.0.0.1" \
      -e "REDIS_ADDR=127.0.0.1:6379" \
+     -e "REDIS_PASSWORD=YOUR_SECURE_PASSWORD" \
      nodeservice
    ```
 
