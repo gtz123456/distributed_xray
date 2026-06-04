@@ -244,7 +244,7 @@ func (sh *nodeHandler) handleConnect(w http.ResponseWriter, r *http.Request) {
 		Uuid:  uuid,
 		Level: 0,
 		InTag: "test",
-		Email: email,
+		Email: uuid, // Use uuid as Email to ensure consistent removal
 	}
 
 	err = addVlessUser(xrayCtl.HsClient, userInfo) // TODO: user might already exists, so we should check if user exists before adding
@@ -347,6 +347,17 @@ func (sh *nodeHandler) handleDisconnect(w http.ResponseWriter, r *http.Request) 
 	connectionsLock.Lock()
 	defer connectionsLock.Unlock()
 
+	var localXrayCtl *XrayController
+	if len(uuids) > 0 {
+		localXrayCtl = new(XrayController)
+		if err := localXrayCtl.Init(cfg); err != nil {
+			log.Printf("Failed to initialize Xray controller for disconnect: %v", err)
+			localXrayCtl = nil
+		} else {
+			defer localXrayCtl.CmdConn.Close()
+		}
+	}
+
 	for _, uuid := range uuids {
 		log.Printf("Processing disconnect for UUID: %s", uuid)
 
@@ -362,6 +373,21 @@ func (sh *nodeHandler) handleDisconnect(w http.ResponseWriter, r *http.Request) 
 		}
 		
 		utils.RedisClient.HDel(utils.Ctx, "node_ports:"+NodeIP, uuid)
+
+		if localXrayCtl != nil {
+			userInfo := &UserInfo{
+				Uuid:  uuid,
+				Level: 0,
+				InTag: "test",
+				Email: uuid,
+			}
+			err := removeVlessUser(localXrayCtl.HsClient, userInfo)
+			if err != nil {
+				log.Printf("Failed to remove user %s from Xray: %v", uuid, err)
+			} else {
+				log.Printf("Removed user %s from Xray successfully", uuid)
+			}
+		}
 	}
 
 	w.WriteHeader(http.StatusOK)
