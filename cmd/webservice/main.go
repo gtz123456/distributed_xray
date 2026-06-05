@@ -98,6 +98,7 @@ func main() {
 
 	controllers.StartHeartbeatMonitor()
 	controllers.StartPlanMonitor()
+	controllers.StartNodeStatusMonitor()
 	go controllers.StartReleaseCacheMonitor()
 
 	r := gin.Default()

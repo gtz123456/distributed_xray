@@ -6,6 +6,7 @@ import (
 	"go-distributed/registry"
 	"go-distributed/utils"
 	"go-distributed/web/db"
+	"log"
 	"net/http"
 	"os"
 	"sync"
@@ -13,6 +14,31 @@ import (
 
 	"github.com/gin-gonic/gin"
 )
+
+var NodeStatusCache sync.Map // map[string]NodeStatusItem (key: reg.PublicIP)
+
+func StartNodeStatusMonitor() {
+	go func() {
+		for {
+			regs, err := registry.GetProviders(registry.NodeService)
+			if err == nil {
+				var wg sync.WaitGroup
+				for _, reg := range regs {
+					wg.Add(1)
+					go func(r registry.Registration) {
+						defer wg.Done()
+						status := fetchNodeStatus(r)
+						NodeStatusCache.Store(r.PublicIP, status)
+					}(reg)
+				}
+				wg.Wait()
+			} else {
+				log.Printf("StartNodeStatusMonitor: Failed to fetch nodes: %v", err)
+			}
+			time.Sleep(15 * time.Second)
+		}
+	}()
+}
 
 // NodeStatusItem is what the WebService returns for each node in the cluster.
 type NodeStatusItem struct {

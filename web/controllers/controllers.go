@@ -263,6 +263,21 @@ func Servers(c *gin.Context) {
 	servers := []Server{}
 
 	for _, reg := range regs {
+		// Filter using cached status
+		if val, ok := NodeStatusCache.Load(reg.PublicIP); ok {
+			status := val.(NodeStatusItem)
+			
+			// Skip if the node is offline
+			if !status.Online {
+				continue
+			}
+
+			// Skip if traffic limit is reached
+			if status.TrafficLimitBytes > 0 && status.TrafficUsedBytes >= status.TrafficLimitBytes {
+				continue
+			}
+		}
+
 		server := Server{
 			IP:          reg.PublicIP,
 			IPV6:        reg.PublicIPv6,
