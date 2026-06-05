@@ -17,11 +17,11 @@ import (
 // NodeStatusItem is what the WebService returns for each node in the cluster.
 type NodeStatusItem struct {
 	// Identity
-	ServiceID   string `json:"service_id"`
-	PublicIP    string `json:"public_ip"`
-	Description string `json:"description"`
+	ServiceID   string   `json:"service_id"`
+	PublicIP    string   `json:"public_ip"`
+	Description string   `json:"description"`
 	Tags        []string `json:"tags"`
-	Online      bool   `json:"online"`
+	Online      bool     `json:"online"`
 
 	// System metrics
 	CPUPercent  float64 `json:"cpu_percent"`
@@ -41,8 +41,8 @@ type NodeStatusItem struct {
 	TrafficLimitBytes int64 `json:"traffic_limit_bytes"`
 
 	// Users
-	ConnectionCount int              `json:"connection_count"`
-	Connections     []NodeConnItem   `json:"connections"`
+	ConnectionCount int            `json:"connection_count"`
+	Connections     []NodeConnItem `json:"connections"`
 
 	CollectedAt time.Time `json:"collected_at"`
 	Error       string    `json:"error,omitempty"`
@@ -189,10 +189,10 @@ func AdminCluster(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"nodes":            results,
-		"node_count":       len(results),
-		"total_conns":      totalConns,
-		"total_up_per_sec": totalUp,
+		"nodes":              results,
+		"node_count":         len(results),
+		"total_conns":        totalConns,
+		"total_up_per_sec":   totalUp,
 		"total_down_per_sec": totalDown,
 	})
 }

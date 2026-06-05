@@ -14,7 +14,7 @@ import (
 
 const defaultWalletAddress = "TQehEHqevPkudydohYrjJxDwdBkAgFUebw" // default wallet address
 
-var intervalSet = NewIntervalSet()                             // store the actual amounts as intervals, for fast searching
+var intervalSet = NewIntervalSet() // store the actual amounts as intervals, for fast searching
 
 func init() {
 	utils.LoadEnv()
@@ -94,7 +94,7 @@ func RestoreStateFromDB() error {
 
 	for _, order := range orders {
 		intervalSet.Add(order.ActualAmount)
-		
+
 		ttl := time.Until(order.CreatedAt.Add(paymentTimeout))
 		if ttl > 0 {
 			utils.RedisClient.Set(utils.Ctx, "actual_amount_to_id:"+strconv.FormatInt(order.ActualAmount, 10), order.ID, ttl)

@@ -77,11 +77,11 @@ func runCommand(name string, args ...string) error {
 
 func blockAllExcept22() {
 	log.Println("[!] Blocking all ports except 22...")
-	
+
 	// Ensure custom chain exists and is clean
 	runCommand("iptables", "-N", "NODESERVICE_LIMIT")
 	runCommand("iptables", "-F", "NODESERVICE_LIMIT")
-	
+
 	// Add rules to the custom chain
 	runCommand("iptables", "-A", "NODESERVICE_LIMIT", "-p", "tcp", "--dport", "22", "-j", "ACCEPT")
 	runCommand("iptables", "-A", "NODESERVICE_LIMIT", "-i", "lo", "-j", "ACCEPT")
@@ -115,7 +115,7 @@ func CheckTriffic() {
 	if int(curDay) == int(resetDay) && int(lastMonth) != curMonth {
 		log.Println("[*] Monthly reset triggered.")
 		RestoreFirewall()
-		
+
 		curTraffic, err := getCurrentTrafficBytes()
 		if err == nil {
 			writeFileInt(usageFile, curTraffic)      // reset traffic usage baseline

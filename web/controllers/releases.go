@@ -109,7 +109,7 @@ func refreshCache() {
 	var newAssets []CachedAsset
 	for _, asset := range release.Assets {
 		filePath := filepath.Join(cacheDir, asset.Name)
-		
+
 		// Check if file already exists
 		if _, err := os.Stat(filePath); os.IsNotExist(err) {
 			log.Printf("Downloading new asset: %s\n", asset.Name)

@@ -38,10 +38,10 @@ type NodeStatus struct {
 
 // ConnStatusItem is per-user connection info returned in /status.
 type ConnStatusItem struct {
-	UUID       string `json:"uuid"`
-	Port       int    `json:"port"`
-	UpBytes    int    `json:"up_bytes"`
-	DownBytes  int    `json:"down_bytes"`
+	UUID      string `json:"uuid"`
+	Port      int    `json:"port"`
+	UpBytes   int    `json:"up_bytes"`
+	DownBytes int    `json:"down_bytes"`
 }
 
 // speedSnapshot records the last bandwidth sampling point.

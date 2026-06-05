@@ -43,43 +43,7 @@ var NodeIP string
 
 func RestoreProxies(serverIP string) {
 	NodeIP = serverIP
-	conns, err := utils.RedisClient.HGetAll(utils.Ctx, "node_ports:"+serverIP).Result()
-	if err == nil {
-		for uuid, cfgJSON := range conns {
-			var proxyCfg ProxyConfig
-			json.Unmarshal([]byte(cfgJSON), &proxyCfg)
-			
-			// Re-inject user into Xray-core
-			if xrayCtl == nil {
-				xrayCtl = new(XrayController)
-				if err := xrayCtl.Init(cfg); err != nil { // cfg here refers to the global BaseConfig
-					log.Printf("Failed to initialize Xray controller during restore: %v", err)
-				}
-			}
-			if xrayCtl != nil && xrayCtl.HsClient != nil {
-				userInfo := &UserInfo{
-					Uuid:  uuid,
-					Level: 0,
-					InTag: "test",
-					Email: uuid, // Email is missing in ProxyConfig, fallback to uuid
-				}
-				err := addVlessUser(xrayCtl.HsClient, userInfo)
-				if err != nil {
-					removeVlessUser(xrayCtl.HsClient, userInfo)
-					addVlessUser(xrayCtl.HsClient, userInfo)
-				}
-			}
-
-			ctx, cancel := context.WithCancel(context.Background())
-			go NewProxy(ctx, proxyCfg.Port, proxyCfg.ClientIP, proxyCfg.RateLimitInt, proxyCfg.BurstInt, statsStore)
-
-			connectionsLock.Lock()
-			connections[uuid] = proxyCfg.Port
-			proxyServices[uuid] = &ProxyService{cancelFunc: cancel}
-			connectionsLock.Unlock()
-			log.Printf("Restored proxy for %s on port %d", uuid, proxyCfg.Port)
-		}
-	}
+	// Note: The actual restoration is now handled by StartSyncLoop
 }
 
 var (
@@ -100,7 +64,6 @@ func RegisterHandlers() {
 	http.Handle("/info", handler)
 	http.Handle("/limit", handler)
 	http.Handle("/connect", handler)
-	http.Handle("/disconnect", handler)
 	http.Handle("/status", handler)
 	http.Handle("/shell", handler)
 }
@@ -123,11 +86,6 @@ func (sh *nodeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		default:
 			w.WriteHeader(http.StatusNotFound)
-		}
-	case http.MethodPost:
-		switch r.URL.Path {
-		case "/disconnect":
-			sh.handleDisconnect(w, r)
 		}
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -320,77 +278,101 @@ func (sh *nodeHandler) handleConnect(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (sh *nodeHandler) handleDisconnect(w http.ResponseWriter, r *http.Request) {
-	body, err := io.ReadAll(r.Body)
+func addUserToXray(uuid string) {
+	localXrayCtl := new(XrayController)
+	if err := localXrayCtl.Init(cfg); err != nil {
+		log.Printf("Failed to initialize Xray controller for add: %v", err)
+		return
+	}
+	defer localXrayCtl.CmdConn.Close()
+
+	userInfo := &UserInfo{
+		Uuid:  uuid,
+		Level: 0,
+		InTag: "test",
+		Email: uuid,
+	}
+	err := addVlessUser(localXrayCtl.HsClient, userInfo)
 	if err != nil {
-		log.Printf("Error reading request body: %v", err)
-		w.WriteHeader(http.StatusInternalServerError)
+		log.Printf("Warning: failed to add user %s: %v, attempting remove and re-add...", uuid, err)
+		removeVlessUser(localXrayCtl.HsClient, userInfo)
+		addVlessUser(localXrayCtl.HsClient, userInfo)
+	}
+}
+
+func removeUserFromXray(uuid string) {
+	localXrayCtl := new(XrayController)
+	if err := localXrayCtl.Init(cfg); err != nil {
+		log.Printf("Failed to initialize Xray controller for disconnect: %v", err)
 		return
 	}
-	defer r.Body.Close()
+	defer localXrayCtl.CmdConn.Close()
 
-	var uuids []string
-	if err := json.Unmarshal(body, &uuids); err != nil {
-		log.Printf("Error unmarshalling JSON: %v", err)
-		w.WriteHeader(http.StatusBadRequest)
-		return
+	userInfo := &UserInfo{
+		Uuid:  uuid,
+		Level: 0,
+		InTag: "test",
+		Email: uuid,
 	}
-
-	if len(uuids) == 0 {
-		log.Println("Received an empty list of UUIDs")
-		w.WriteHeader(http.StatusBadRequest)
-		return
+	err := removeVlessUser(localXrayCtl.HsClient, userInfo)
+	if err != nil {
+		log.Printf("Failed to remove user %s from Xray: %v", uuid, err)
+	} else {
+		log.Printf("Removed user %s from Xray successfully", uuid)
 	}
+}
 
-	log.Printf("Received disconnect request for %d UUIDs", len(uuids))
+func StartSyncLoop() {
+	go func() {
+		for {
+			time.Sleep(10 * time.Second)
 
-	connectionsLock.Lock()
-	defer connectionsLock.Unlock()
-
-	var localXrayCtl *XrayController
-	if len(uuids) > 0 {
-		localXrayCtl = new(XrayController)
-		if err := localXrayCtl.Init(cfg); err != nil {
-			log.Printf("Failed to initialize Xray controller for disconnect: %v", err)
-			localXrayCtl = nil
-		} else {
-			defer localXrayCtl.CmdConn.Close()
-		}
-	}
-
-	for _, uuid := range uuids {
-		log.Printf("Processing disconnect for UUID: %s", uuid)
-
-		port := connections[uuid]
-
-		statsStore.Delete(port) // remove stats for this port
-
-		delete(connections, uuid)
-
-		if svc, ok := proxyServices[uuid]; ok {
-			svc.cancelFunc()
-			delete(proxyServices, uuid)
-		}
-		
-		utils.RedisClient.HDel(utils.Ctx, "node_ports:"+NodeIP, uuid)
-
-		if localXrayCtl != nil {
-			userInfo := &UserInfo{
-				Uuid:  uuid,
-				Level: 0,
-				InTag: "test",
-				Email: uuid,
+			if NodeIP == "" {
+				continue
 			}
-			err := removeVlessUser(localXrayCtl.HsClient, userInfo)
+
+			// Read from Redis
+			redisConns, err := utils.RedisClient.HGetAll(utils.Ctx, "node_ports:"+NodeIP).Result()
 			if err != nil {
-				log.Printf("Failed to remove user %s from Xray: %v", uuid, err)
-			} else {
-				log.Printf("Removed user %s from Xray successfully", uuid)
+				log.Printf("SyncLoop: Failed to fetch node_ports from redis: %v", err)
+				continue
 			}
-		}
-	}
 
-	w.WriteHeader(http.StatusOK)
+			connectionsLock.Lock()
+			// Find local connections that are NOT in Redis (Need to be disconnected)
+			for uuid, port := range connections {
+				if _, exists := redisConns[uuid]; !exists {
+					log.Printf("SyncLoop: Found orphan connection for UUID %s on port %d, disconnecting...", uuid, port)
+					statsStore.Delete(port)
+					delete(connections, uuid)
+					if svc, ok := proxyServices[uuid]; ok {
+						svc.cancelFunc()
+						delete(proxyServices, uuid)
+					}
+					// Remove from Xray
+					removeUserFromXray(uuid)
+				}
+			}
+
+			// Find Redis connections that are NOT local (Need to be connected/restored)
+			for uuid, cfgJSON := range redisConns {
+				if _, exists := connections[uuid]; !exists {
+					var proxyCfg ProxyConfig
+					json.Unmarshal([]byte(cfgJSON), &proxyCfg)
+					log.Printf("SyncLoop: Found missing connection for UUID %s on port %d, restoring...", uuid, proxyCfg.Port)
+
+					addUserToXray(uuid)
+
+					ctx, cancel := context.WithCancel(context.Background())
+					go NewProxy(ctx, proxyCfg.Port, proxyCfg.ClientIP, proxyCfg.RateLimitInt, proxyCfg.BurstInt, statsStore)
+
+					connections[uuid] = proxyCfg.Port
+					proxyServices[uuid] = &ProxyService{cancelFunc: cancel}
+				}
+			}
+			connectionsLock.Unlock()
+		}
+	}()
 }
 
 func StartTrafficReport() {

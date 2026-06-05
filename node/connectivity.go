@@ -35,27 +35,27 @@ func parseConnectivity(output string, connectivity map[string]bool) map[string]b
 	lines := strings.Split(clean, "\n")
 
 	mapping := map[string]string{
-		"BingSearch":        "Bing",
-		"GoogleSearch":      "Google",
-		"Claude":            "Claude",
-		"ChatGPT":           "ChatGPT",
-		"Gemini":            "Gemini",
-		"MetaAI":            "MetaAI",
-		"YouTube Region":    "Youtube",
-		"Netflix":           "Netflix",
-		"Disney+":           "DisneyPlus",
+		"BingSearch":         "Bing",
+		"GoogleSearch":       "Google",
+		"Claude":             "Claude",
+		"ChatGPT":            "ChatGPT",
+		"Gemini":             "Gemini",
+		"MetaAI":             "MetaAI",
+		"YouTube Region":     "Youtube",
+		"Netflix":            "Netflix",
+		"Disney+":            "DisneyPlus",
 		"Amazon Prime Video": "AmazonPrime",
-		"TikTok":            "TikTok",
-		"Niconico":          "Niconico",
-		"Wavve":             "Wavve",
-		"Peacock TV":        "PeacockTV",
-		"Discovery+":        "DiscoveryPlus",
-		"Hulu":              "Hulu",
-		"Crunchyroll":       "Crunchyroll",
-		"NBA TV":            "NBATV",
-		"Google Play Store": "GooglePlayStore",
-		"Steam Store":       "Steam",
-		"Spotify":           "Spotify", // Can be 'Spotify Registration'
+		"TikTok":             "TikTok",
+		"Niconico":           "Niconico",
+		"Wavve":              "Wavve",
+		"Peacock TV":         "PeacockTV",
+		"Discovery+":         "DiscoveryPlus",
+		"Hulu":               "Hulu",
+		"Crunchyroll":        "Crunchyroll",
+		"NBA TV":             "NBATV",
+		"Google Play Store":  "GooglePlayStore",
+		"Steam Store":        "Steam",
+		"Spotify":            "Spotify", // Can be 'Spotify Registration'
 	}
 
 	for _, line := range lines {

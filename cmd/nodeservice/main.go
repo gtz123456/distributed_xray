@@ -140,5 +140,8 @@ func main() {
 		stlog.Fatalln("Error launching xray:", err)
 	}
 	fmt.Println("Xray launched")
+
+	node.StartSyncLoop()
+
 	<-ctx.Done()
 }

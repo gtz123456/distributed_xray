@@ -24,7 +24,7 @@ func (m *MockValidator) IsServiceRegistered(serviceID string) bool {
 
 func TestHeartBeatServer_Concurrent(t *testing.T) {
 	server := NewHeartBeatServer()
-	
+
 	validator := &MockValidator{
 		valid: make(map[string]bool),
 	}
@@ -64,7 +64,7 @@ func TestHeartBeatServer_Concurrent(t *testing.T) {
 
 func TestHeartBeatServer_Unauthorized(t *testing.T) {
 	server := NewHeartBeatServer()
-	
+
 	validator := &MockValidator{
 		valid: make(map[string]bool),
 	}
@@ -76,7 +76,7 @@ func TestHeartBeatServer_Unauthorized(t *testing.T) {
 	server.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
-	
+
 	server.Mutex.RLock()
 	assert.Equal(t, 0, len(server.LastHeartBeat))
 	server.Mutex.RUnlock()
@@ -84,7 +84,7 @@ func TestHeartBeatServer_Unauthorized(t *testing.T) {
 
 func TestHeartBeatServer_NotFound(t *testing.T) {
 	server := NewHeartBeatServer()
-	
+
 	req := httptest.NewRequest(http.MethodPost, "/invalid/path", nil)
 	w := httptest.NewRecorder()
 

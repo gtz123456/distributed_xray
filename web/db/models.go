@@ -23,7 +23,7 @@ type User struct {
 
 	ReferralCode string
 	ReferredBy   string // Stores the ReferralCode of the user who invited this user
-	Balance      int // in cents
+	Balance      int    // in cents
 
 	// email verification
 	IsVerified  bool

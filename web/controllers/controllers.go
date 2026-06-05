@@ -15,15 +15,13 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
-	"golang.org/x/crypto/bcrypt"
 	"go-distributed/web/config"
+	"golang.org/x/crypto/bcrypt"
 )
 
 const MAX_CONNECTIONS_PER_USER = 2
 const HEARTBEAT_TIMEOUT = 30 * time.Second
 const HEARTBEAT_CHECK_INTERVAL = 10 * time.Second
-
-
 
 var RateMap = map[string]int{
 	"Free plan":    10 * 1000 * 1000 / 8,  // 10 Mbps
@@ -108,7 +106,7 @@ func Signup(c *gin.Context) {
 	// Apply referral reward
 	if referrer.ID != 0 {
 		user.ReferredBy = referrer.ReferralCode
-		
+
 		// Reward Referee
 		user.Plan = "Premium plan"
 		user.TrafficLimit = 200 * 1000 * 1000 * 1000 // Premium plan limit
@@ -507,11 +505,9 @@ func HeartbeatFromClient(c *gin.Context) {
 	json.Unmarshal([]byte(connJSON), &conn)
 	conn.LastHeartBeat = time.Now()
 	newConnJSON, _ := json.Marshal(conn)
-	
+
 	utils.RedisClient.HSet(utils.Ctx, "user_conns:"+userID, serviceID, newConnJSON)
 	utils.RedisClient.SAdd(utils.Ctx, "active_users", userID)
-
-
 
 	c.JSON(http.StatusOK, gin.H{})
 }

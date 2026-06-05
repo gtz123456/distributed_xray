@@ -98,4 +98,3 @@ func ServiceAuth(c *gin.Context) {
 
 	c.Next()
 }
-

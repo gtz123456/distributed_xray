@@ -157,7 +157,7 @@ func Callback(c *gin.Context) {
 		var referrer db.User
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
 			Where("referral_code = ?", user.ReferredBy).First(&referrer).Error; err == nil {
-			
+
 			rebateAmount := payment.Amount * config.Referral.PaymentRebatePercentReferrer / 100
 			if rebateAmount > 0 {
 				referrer.Balance += rebateAmount

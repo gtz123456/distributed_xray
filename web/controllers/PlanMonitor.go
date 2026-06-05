@@ -5,8 +5,6 @@ import (
 	"go-distributed/utils"
 	"go-distributed/web/db"
 	"log"
-	"os"
-	"sync"
 	"time"
 )
 
@@ -47,9 +45,6 @@ func StartPlanMonitor() {
 				continue
 			}
 
-			// Map to collect disconnect URLs per disconnect url
-			disconnectURLs := make(map[string][]string)
-
 			for _, user := range users {
 				log.Printf("User %s: TrafficUsed=%d, TrafficLimit=%d", user.Email, user.TrafficUsed, user.TrafficLimit)
 
@@ -61,26 +56,11 @@ func StartPlanMonitor() {
 					for _, connJSON := range conns {
 						var conn UserConnection
 						json.Unmarshal([]byte(connJSON), &conn)
-						disconnectURL := "http://" + conn.NodeIP + ":" + os.Getenv("Node_Port") + "/disconnect"
-						disconnectURLs[disconnectURL] = append(disconnectURLs[disconnectURL], user.UUID)
+						// The new declarative way: Just remove from node_ports hash
+						utils.RedisClient.HDel(utils.Ctx, "node_ports:"+conn.NodeIP, user.UUID)
 					}
 				}
 			}
-
-			// Batch disconnect requests per URL
-			var wg sync.WaitGroup
-			for url, uuids := range disconnectURLs {
-				wg.Add(1)
-				go func(disconnectURL string, uuids []string) {
-					defer wg.Done()
-					if err := sendDisconnectRequest(disconnectURL, uuids); err != nil {
-						log.Printf("Error sending batch disconnect request to %s: %v", disconnectURL, err)
-					} else {
-						log.Printf("Successfully sent batch disconnect request to %s for %d users.", disconnectURL, len(uuids))
-					}
-				}(url, uuids)
-			}
-			wg.Wait()
 		}
 	}()
 }

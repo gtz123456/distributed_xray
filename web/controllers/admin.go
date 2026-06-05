@@ -7,7 +7,6 @@ import (
 	"go-distributed/web/db"
 	"net/http"
 	"net/url"
-	"os"
 	"strconv"
 	"time"
 
@@ -109,7 +108,7 @@ func AdminSetPlan(c *gin.Context) {
 	uuid := c.Param("uuid")
 	var req struct {
 		Plan           string `json:"plan"`
-		Action         string `json:"action"`          // "add" or "set"
+		Action         string `json:"action"` // "add" or "set"
 		DeltaAmount    int    `json:"delta_amount"`
 		DeltaUnit      string `json:"delta_unit"`      // "days", "months", "years"
 		EndDate        string `json:"end_date"`        // "YYYY-MM-DD"
@@ -254,17 +253,13 @@ func AdminBanUser(c *gin.Context) {
 	// Also immediately clean up Redis connections
 	conns, err := utils.RedisClient.HGetAll(utils.Ctx, "user_conns:"+uuid).Result()
 	if err == nil && len(conns) > 0 {
-		disconnectURLs := make(map[string][]string)
+		utils.RedisClient.Del(utils.Ctx, "user_conns:"+uuid)
+		utils.RedisClient.SRem(utils.Ctx, "active_users", uuid)
 		for _, connJSON := range conns {
 			var conn UserConnection
 			json.Unmarshal([]byte(connJSON), &conn)
-			disconnectURL := "http://" + conn.NodeIP + ":" + os.Getenv("Node_Port") + "/disconnect"
-			disconnectURLs[disconnectURL] = append(disconnectURLs[disconnectURL], uuid)
-		}
-		utils.RedisClient.Del(utils.Ctx, "user_conns:"+uuid)
-		utils.RedisClient.SRem(utils.Ctx, "active_users", uuid)
-		for url, uuids := range disconnectURLs {
-			go sendDisconnectRequest(url, uuids)
+			// The new declarative way: Just remove from node_ports hash
+			utils.RedisClient.HDel(utils.Ctx, "node_ports:"+conn.NodeIP, uuid)
 		}
 	}
 
@@ -370,19 +365,14 @@ func AdminDisconnectUser(c *gin.Context) {
 		return
 	}
 
-	disconnectURLs := make(map[string][]string)
-	for _, connJSON := range conns {
-		var conn UserConnection
-		json.Unmarshal([]byte(connJSON), &conn)
-		disconnectURL := "http://" + conn.NodeIP + ":" + os.Getenv("Node_Port") + "/disconnect"
-		disconnectURLs[disconnectURL] = append(disconnectURLs[disconnectURL], uuid)
-	}
-
 	utils.RedisClient.Del(utils.Ctx, "user_conns:"+uuid)
 	utils.RedisClient.SRem(utils.Ctx, "active_users", uuid)
 
-	for url, uuids := range disconnectURLs {
-		go sendDisconnectRequest(url, uuids)
+	for _, connJSON := range conns {
+		var conn UserConnection
+		json.Unmarshal([]byte(connJSON), &conn)
+		// The new declarative way: Just remove from node_ports hash
+		utils.RedisClient.HDel(utils.Ctx, "node_ports:"+conn.NodeIP, uuid)
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "User disconnected"})
