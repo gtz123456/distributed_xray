@@ -355,8 +355,9 @@ func StartSyncLoop() {
 			}
 
 			// Find Redis connections that are NOT local (Need to be connected/restored)
-			for uuid, cfgJSON := range redisConns {
-				if _, exists := connections[uuid]; !exists {
+			if !IsTrafficExhausted() {
+				for uuid, cfgJSON := range redisConns {
+					if _, exists := connections[uuid]; !exists {
 					var proxyCfg ProxyConfig
 					json.Unmarshal([]byte(cfgJSON), &proxyCfg)
 					log.Printf("SyncLoop: Found missing connection for UUID %s on port %d, restoring...", uuid, proxyCfg.Port)
@@ -370,7 +371,8 @@ func StartSyncLoop() {
 					proxyServices[uuid] = &ProxyService{cancelFunc: cancel}
 				}
 			}
-			connectionsLock.Unlock()
+		}
+		connectionsLock.Unlock()
 		}
 	}()
 }

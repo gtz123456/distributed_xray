@@ -76,17 +76,23 @@ func runCommand(name string, args ...string) error {
 }
 
 func blockAllExcept22() {
-	log.Println("[!] Blocking all ports except 22...")
+	log.Println("[!] Blocking all ports except 22 and API...")
 
 	// Ensure custom chain exists and is clean
 	runCommand("iptables", "-N", "NODESERVICE_LIMIT")
 	runCommand("iptables", "-F", "NODESERVICE_LIMIT")
 
+	apiPort := os.Getenv("Node_Port")
+	if apiPort == "" {
+		apiPort = "80"
+	}
+
 	// Add rules to the custom chain
 	runCommand("iptables", "-A", "NODESERVICE_LIMIT", "-p", "tcp", "--dport", "22", "-j", "ACCEPT")
+	runCommand("iptables", "-A", "NODESERVICE_LIMIT", "-p", "tcp", "--dport", apiPort, "-j", "ACCEPT")
 	runCommand("iptables", "-A", "NODESERVICE_LIMIT", "-i", "lo", "-j", "ACCEPT")
 	runCommand("iptables", "-A", "NODESERVICE_LIMIT", "-m", "state", "--state", "ESTABLISHED,RELATED", "-j", "ACCEPT")
-	runCommand("iptables", "-A", "NODESERVICE_LIMIT", "-j", "DROP")
+	runCommand("iptables", "-A", "NODESERVICE_LIMIT", "-j", "REJECT", "--reject-with", "tcp-reset")
 
 	// Insert the custom chain at the top of INPUT (remove first to avoid duplicates)
 	runCommand("iptables", "-D", "INPUT", "-j", "NODESERVICE_LIMIT")
@@ -148,5 +154,34 @@ func CheckTriffic() {
 
 	if percent >= 95 {
 		blockAllExcept22()
+		
+		// Aggressively kill existing VPN connections to stop traffic leakage
+		log.Println("[!] Traffic exhausted! Forcefully closing all existing connections...")
+		connectionsLock.Lock()
+		for uuid, svc := range proxyServices {
+			svc.cancelFunc()
+			delete(proxyServices, uuid)
+			if port, ok := connections[uuid]; ok {
+				statsStore.Delete(port)
+			}
+			delete(connections, uuid)
+		}
+		connectionsLock.Unlock()
 	}
+}
+
+func IsTrafficExhausted() bool {
+	trafficLimitGB := getEnvInt("TRAFFIC_LIMIT_GB", 10)
+	curTraffic, err := getCurrentTrafficBytes()
+	if err != nil {
+		return false
+	}
+	startTraffic := readFileInt(usageFile)
+	if startTraffic == -1 || curTraffic < startTraffic {
+		return false
+	}
+	usedBytes := curTraffic - startTraffic
+	usedGB := usedBytes / (1024 * 1024 * 1024)
+	percent := (usedGB * 100) / trafficLimitGB
+	return percent >= 95
 }
